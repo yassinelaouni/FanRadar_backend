@@ -36,6 +36,8 @@ class AuthentificationController extends Controller
                 'last_name' => $user->last_name,
                 'email' => $user->email,
                 'profile_image' => $user->profile_image,
+                'role'=>$user->getRoleNames(),
+                'permissions' => $user->getPermissionNames(),
             ],
             'token' => $token,
         ]);
@@ -49,6 +51,7 @@ class AuthentificationController extends Controller
             'email' => 'required|string|email|unique:users,email',
             'password' => 'required|string|min:6|confirmed',
             'profile_image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+
         ]);
 
         if ($validator->fails()) {
@@ -70,6 +73,8 @@ class AuthentificationController extends Controller
             'profile_image' => $profileImagePath ?? 'default.png', // ou null si tu préfères
         ]);
 
+        $user->assignRole('user');// Assign a default role 'user'
+
         // Création du token Sanctum
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -81,6 +86,8 @@ class AuthentificationController extends Controller
                 'last_name' => $user->last_name,
                 'email' => $user->email,
                 'profile_image' => $user->profile_image,
+                'role'=>$user->getRoleNames(),
+                'permissions' => $user->getPermissionNames(),
             ],
             'token' => $token,
         ], 201);
