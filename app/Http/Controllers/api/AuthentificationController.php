@@ -52,7 +52,7 @@ class AuthentificationController extends Controller
                     'first_name' => 'required|string|max:255',
                     'last_name' => 'required|string|max:255',
                     'email' => 'required|string|email|unique:users,email',
-                    'password' => 'required|string|min:6|confirmed',
+                    'password' => 'required|string|min:6',
                     'profile_image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
 
                 ]);
@@ -102,6 +102,7 @@ class AuthentificationController extends Controller
             {
                 $request->user()->currentAccessToken()->delete();
                 return response()->json(['message' => 'Logout successful']);
+
             }
 
     public function logoutfromAllDevices(Request $request)
