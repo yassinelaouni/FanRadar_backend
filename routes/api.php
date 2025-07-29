@@ -4,15 +4,6 @@ use App\Http\Controllers\Api\AuthentificationController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderProductController;
-use App\Http\Controllers\CategoryController;
-use App\Http\Controllers\SubcategoryController;
-use App\Http\Controllers\ContentController;
-use App\Http\Controllers\MediaController;
-use App\Http\Controllers\PostController;
-use App\Http\Controllers\FavoriteController;
-use App\Http\Controllers\RatingController;
-use App\Http\Controllers\TagController;
-use App\Http\Controllers\CommunityController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -32,61 +23,85 @@ Route::middleware('auth:sanctum')->group(function () {
    
    // Routes pour les produits de commande
    Route::apiResource('order-products', OrderProductController::class);
-   
-   // ========== NOUVELLES ROUTES SYSTÈME SOCIAL ==========
-   
-   // Routes pour les catégories
-   Route::apiResource('categories', CategoryController::class);
-   
-   // Routes pour les sous-catégories
-   Route::apiResource('subcategories', SubcategoryController::class);
-   
-   // Routes pour le contenu
-   Route::apiResource('content', ContentController::class);
-   
-   // Routes pour les médias
-   Route::apiResource('media', MediaController::class);
-   
-   // Routes pour les posts
-   Route::apiResource('posts', PostController::class);
-   
-   // Routes pour les favoris
-   Route::apiResource('favorites', FavoriteController::class);
-   
-   // Routes pour les évaluations
-   Route::apiResource('ratings', RatingController::class);
-   
-   // Routes pour les tags
-   Route::apiResource('tags', TagController::class);
-   
-   // Routes pour les communautés
-   Route::apiResource('communities', CommunityController::class);
 });
 
 // Routes publiques
 Route::post('/login', [AuthentificationController::class, 'login']);
 Route::post('/register', [AuthentificationController::class, 'register']);
 
-// ========== ROUTES PUBLIQUES POUR TESTS ==========
+// ========== ROUTES DE TEST (GET) ==========
 
 // Route de test simple
 Route::get('/test', function () {
     return response()->json([
-        'message' => 'API FanRadar fonctionne !',
+        'message' => 'API FanRadar fonctionne parfaitement !',
         'timestamp' => now(),
-        'status' => 'success'
+        'status' => 'success',
+        'version' => '1.0.0'
     ]);
 });
 
-// Routes publiques pour consultation (sans authentification)
-Route::get('/categories', [CategoryController::class, 'index']);
-Route::get('/categories/{category}', [CategoryController::class, 'show']);
+// Test de base de données
+Route::get('/test-db', function () {
+    try {
+        $userCount = \App\Models\User::count();
+        $productCount = \App\Models\Product::count();
+        
+        return response()->json([
+            'message' => 'Base de données connectée !',
+            'users_count' => $userCount,
+            'products_count' => $productCount,
+            'status' => 'success'
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'Erreur de base de données',
+            'error' => $e->getMessage(),
+            'status' => 'error'
+        ], 500);
+    }
+});
 
+// ========== ROUTES PUBLIQUES POUR E-COMMERCE ==========
+
+// � PRODUITS - Routes publiques
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/{product}', [ProductController::class, 'show']);
+Route::post('/products', [ProductController::class, 'store']);
+Route::put('/products/{product}', [ProductController::class, 'update']);
+Route::delete('/products/{product}', [ProductController::class, 'destroy']);
 
-Route::get('/subcategories', [SubcategoryController::class, 'index']);
-Route::get('/content', [ContentController::class, 'index']);
-Route::get('/tags', [TagController::class, 'index']);
+// 🛒 COMMANDES - Routes publiques (pour test uniquement)
+Route::get('/orders', [OrderController::class, 'index']);
+Route::get('/orders/{order}', [OrderController::class, 'show']);
+
+// 🔗 PRODUITS DE COMMANDE - Routes publiques (pour test uniquement)
+Route::get('/order-products', [OrderProductController::class, 'index']);
+Route::get('/order-products/{orderProduct}', [OrderProductController::class, 'show']);
+
+// ========== ROUTES DE DIAGNOSTIC ==========
+
+// Liste de toutes les tables disponibles
+Route::get('/tables', function () {
+    return response()->json([
+        'message' => 'Tables FanRadar disponibles (Système E-commerce)',
+        'tables' => [
+            'users' => '/api/users (via auth)',
+            'products' => '/api/products',
+            'orders' => '/api/orders', 
+            'order_products' => '/api/order-products'
+        ],
+        'test_routes' => [
+            'api_test' => '/api/test',
+            'db_test' => '/api/test-db',
+            'tables_list' => '/api/tables'
+        ],
+        'auth_routes' => [
+            'login' => 'POST /api/login',
+            'register' => 'POST /api/register'
+        ],
+        'system_type' => 'E-commerce Backend'
+    ]);
+});
 
 
