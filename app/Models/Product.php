@@ -48,5 +48,9 @@ class Product extends Model
     {
         return $this->morphToMany(Tag::class, 'taggable');
     }
+public function subcategory()
+{
+    return $this->belongsTo(Subcategory::class);
+}
 
 }

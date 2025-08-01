@@ -1,61 +1,781 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+## 🔐 API d'Authentification
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+### Contrôleur : `Api\AuthentificationController`
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+### ✅ Enregistrement
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+**URL :** `POST /api/register`
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+**Champs requis :**
 
-## Learning Laravel
+- `first_name` (string, requis)  
+- `last_name` (string, requis)  
+- `email` (string, requis, unique)  
+- `password` (string, requis, min:6)  
+- `profile_image` (file, optionnel – jpg/jpeg/png)
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+**Réponse :**
+```json
+{
+  "message": "Inscription réussie.",
+  "user": {
+    "id": 1,
+    "first_name": "Jean",
+    "last_name": "Dupont",
+    "email": "jean@example.com",
+    "profile_image": "default.png",
+    "role": ["user"],
+    "permissions": []
+  },
+  "token": "TOKEN_SANCTUM"
+}
+```
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+---
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### 🔓 Connexion
 
-## Laravel Sponsors
+**URL :** `POST /api/login`
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+**Champs requis :**
 
-### Premium Partners
+- `email` (string)  
+- `password` (string)
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+**Réponse (succès) :**
+```json
+{
+  "message": "Connexion réussie.",
+  "user": {
+    "id": 1,
+    "first_name": "Jean",
+    "last_name": "Dupont",
+    "email": "jean@example.com",
+    "profile_image": "default.png",
+    "role": ["user"],
+    "permissions": []
+  },
+  "token": "TOKEN_SANCTUM"
+}
+```
 
-## Contributing
+**Réponse (échec) :**
+```json
+{
+  "message": "Email ou mot de passe invalide."
+}
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+---
 
-## Code of Conduct
+### 🚪 Déconnexion
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+**URL :** `POST /api/logout`
 
-## Security Vulnerabilities
+**Headers :**
+```
+Authorization: Bearer {token}
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+**Réponse :**
+```json
+{
+  "message": "Logout successful"
+}
+```
 
-## License
+---
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### 🔄 Déconnexion de tous les appareils
+
+**URL :** `POST /api/logoutfromAllDevices`
+
+**Headers :**
+```
+Authorization: Bearer {token}
+```
+
+**Réponse :**
+```json
+{
+  "message": "Logged out from all devices."
+}
+```
+
+## 🛒 API Produits
+
+### Contrôleur : `ProductController`
+
+---
+
+### 📄 Liste des produits (paginée)
+
+**URL :** `GET /api/products`
+
+**Description :**  
+Retourne une liste paginée (10 par page) des produits avec leurs médias associés.
+
+**Réponse (succès) :**
+```json
+{
+  "current_page": 1,
+  "data": [
+    {
+      "id": 1,
+      "product_name": "Produit A",
+      "description": "Description du produit",
+      "price": 99.99,
+      "stock": 10,
+      "promotion": 20,
+      "sale_start_date": "2025-08-01",
+      "sale_end_date": "2025-08-15",
+      "medias": [
+        {
+          "id": 1,
+          "file_path": "products/images/image1.jpg",
+          "media_type": "image"
+        }
+      ]
+    }
+  ],
+  ...
+}
+```
+
+---
+
+### ➕ Création d’un produit avec médias
+
+**URL :** `POST /api/products`
+
+**Champs requis :**
+
+- `product_name` (string, requis, max:255)  
+- `description` (string, optionnel)  
+- `price` (numeric, requis, min:0)  
+- `stock` (integer, requis, min:0)  
+- `promotion` (integer, optionnel, entre 0 et 100)  
+- `user_id` (integer, requis, doit exister dans la table users)  
+- `sale_start_date` (date, optionnel)  
+- `sale_end_date` (date, optionnel, doit être après ou égal à sale_start_date)  
+- `medias` (array de fichiers, optionnel) — images ou vidéos
+
+**Réponse (succès) :**
+```json
+{
+  "message": "Produit créé avec succès.",
+  "product": {
+    "id": 1,
+    "product_name": "Produit A",
+    "description": "Description du produit",
+    "price": 99.99,
+    "stock": 10,
+    "promotion": 20,
+    "sale_start_date": "2025-08-01",
+    "sale_end_date": "2025-08-15",
+    "medias": [
+      {
+        "id": 1,
+        "file_path": "products/images/image1.jpg",
+        "media_type": "image"
+      }
+    ]
+  }
+}
+```
+
+---
+
+### 🔍 Afficher un produit
+
+**URL :** `GET /api/products/{product}`
+
+**Réponse (succès) :**
+```json
+{
+  "id": 1,
+  "product_name": "Produit A",
+  "description": "Description du produit",
+  "price": 99.99,
+  "stock": 10,
+  "promotion": 20,
+  "sale_start_date": "2025-08-01",
+  "sale_end_date": "2025-08-15",
+  "medias": [
+    {
+      "id": 1,
+      "file_path": "products/images/image1.jpg",
+      "media_type": "image"
+    }
+  ]
+}
+```
+
+---
+
+### ✏️ Modifier un produit (sans médias)
+
+**URL :** `PUT /api/products/{product}`
+
+**Champs requis :**
+
+- `product_name` (string, requis, max:255)  
+- `description` (string, optionnel)  
+- `price` (numeric, requis, min:0)  
+- `stock` (integer, requis, min:0)  
+- `promotion` (integer, optionnel, entre 0 et 100)  
+- `sale_start_date` (date, optionnel)  
+- `sale_end_date` (date, optionnel, doit être après ou égal à sale_start_date)  
+
+**Réponse (succès) :**
+```json
+{
+  "message": "Produit mis à jour.",
+  "product": {
+    "id": 1,
+    "product_name": "Produit A",
+    "description": "Description mise à jour",
+    "price": 89.99,
+    "stock": 8,
+    "promotion": 15,
+    "sale_start_date": "2025-08-01",
+    "sale_end_date": "2025-08-15",
+    "medias": [ /* médias existants */ ]
+  }
+}
+```
+
+---
+
+### 🗑️ Supprimer un produit avec ses médias
+
+**URL :** `DELETE /api/products/{product}`
+
+**Réponse (succès) :**
+```json
+{
+  "message": "Produit et ses médias supprimés."
+}
+```
+
+## 📝 API Posts
+
+### Contrôleur : `PostController`
+
+---
+
+### 📄 Liste des posts (paginée)
+
+**URL :** `GET /api/posts`
+
+**Description :**  
+Retourne une liste paginée (10 par page) des posts avec l'utilisateur et leurs médias associés.
+
+**Réponse (succès) :**
+```json
+{
+  "current_page": 1,
+  "data": [
+    {
+      "id": 1,
+      "title": "Titre du post",
+      "body": "Contenu du post",
+      "user": {
+        "id": 1,
+        "name": "Jean Dupont",
+        "email": "jean@example.com"
+      },
+      "medias": [
+        {
+          "id": 1,
+          "file_path": "posts/images/image1.jpg",
+          "media_type": "image"
+        }
+      ],
+      ...
+    }
+  ],
+  ...
+}
+```
+
+---
+
+### ➕ Création d’un post avec médias
+
+**URL :** `POST /api/posts`
+
+**Champs requis :**
+
+- `title` (string, requis, max:255)  
+- `body` (string, optionnel)  
+- `user_id` (integer, requis, doit exister dans la table users)  
+- `feedback` (integer, optionnel)  
+- `schedule_at` (date, optionnel)  
+- `description` (string, optionnel)  
+- `content_status` (string, requis, valeurs autorisées : `draft`, `published`, `archived`)  
+- `medias` (array de fichiers, optionnel) — images JPG/JPEG/PNG ou vidéos MP4/MOV, max 20Mo par fichier
+
+**Réponse (succès) :**
+```json
+{
+  "message": "Post créé avec succès.",
+  "post": {
+    "id": 1,
+    "title": "Titre du post",
+    "body": "Contenu du post",
+    "user": {
+      "id": 1,
+      "name": "Jean Dupont",
+      "email": "jean@example.com"
+    },
+    "medias": [
+      {
+        "id": 1,
+        "file_path": "posts/images/image1.jpg",
+        "media_type": "image"
+      }
+    ]
+  }
+}
+```
+
+---
+
+### 🔍 Afficher un post spécifique
+
+**URL :** `GET /api/posts/{post}`
+
+**Réponse (succès) :**
+```json
+{
+  "id": 1,
+  "title": "Titre du post",
+  "body": "Contenu du post",
+  "user": {
+    "id": 1,
+    "name": "Jean Dupont",
+    "email": "jean@example.com"
+  },
+  "medias": [
+    {
+      "id": 1,
+      "file_path": "posts/images/image1.jpg",
+      "media_type": "image"
+    }
+  ]
+}
+```
+
+---
+
+### ✏️ Modifier un post (sans modifier les médias)
+
+**URL :** `PUT /api/posts/{post}`
+
+**Champs requis :**
+
+- `title` (string, requis, max:255)  
+- `body` (string, optionnel)  
+- `feedback` (integer, optionnel)  
+- `schedule_at` (date, optionnel)  
+- `description` (string, optionnel)  
+- `content_status` (string, requis, valeurs : `draft`, `published`, `archived`)
+
+**Réponse (succès) :**
+```json
+{
+  "message": "Post mis à jour.",
+  "post": {
+    "id": 1,
+    "title": "Titre mis à jour",
+    "body": "Contenu mis à jour",
+    "user": {
+      "id": 1,
+      "name": "Jean Dupont",
+      "email": "jean@example.com"
+    },
+    "medias": [ /* médias existants */ ]
+  }
+}
+```
+
+---
+
+### 🗑️ Supprimer un post avec ses médias
+
+**URL :** `DELETE /api/posts/{post}`
+
+**Description :**  
+Supprime le post, ses médias (fichiers et enregistrements).
+
+**Réponse (succès) :**
+```json
+{
+  "message": "Post et ses médias supprimés."
+}
+```
+
+## 🛒 API Commandes
+
+### Contrôleur : `OrderController`
+
+---
+
+### 📄 Liste des commandes
+
+**URL :** `GET /api/orders`
+
+**Description :**  
+Retourne la liste de toutes les commandes avec l’utilisateur et les produits associés.
+
+**Réponse (succès) :**
+```json
+[
+  {
+    "id": 1,
+    "user": {
+      "id": 1,
+      "name": "Jean Dupont",
+      "email": "jean@example.com"
+    },
+    "products": [
+      {
+        "id": 10,
+        "product_name": "Produit A",
+        "pivot": {
+          "quantity": 2
+        }
+      }
+    ],
+    "total_amount": 100.5,
+    "status": "pending",
+    "order_date": "2025-08-01"
+  }
+]
+```
+
+---
+
+### ➕ Créer une commande avec produits
+
+**URL :** `POST /api/orders`
+
+**Champs requis :**
+
+- `user_id` (integer, requis, doit exister dans la table users)  
+- `total_amount` (float, requis, ≥ 0)  
+- `status` (string, optionnel, valeurs possibles selon `Order::STATUSES`, par défaut `"pending"`)  
+- `order_date` (date, requis)  
+- `products` (array, requis) — liste des produits commandés, chaque élément doit contenir :
+  - `product_id` (integer, requis, doit exister dans la table products)
+  - `quantity` (integer, requis, minimum 1)
+
+**Validation spécifique :**
+
+- Vérification que chaque produit existe et que le stock est suffisant avant création.  
+- Si stock insuffisant, renvoie une erreur 422 avec message détaillé.
+
+**Réponse (succès) :**
+```json
+{
+  "id": 1,
+  "user_id": 1,
+  "total_amount": 100.5,
+  "status": "pending",
+  "order_date": "2025-08-01",
+  "products": [
+    {
+      "id": 10,
+      "product_name": "Produit A",
+      "pivot": {
+        "quantity": 2
+      }
+    }
+  ]
+}
+```
+
+---
+
+### 🔍 Afficher une commande spécifique
+
+**URL :** `GET /api/orders/{order}`
+
+**Réponse (succès) :**
+```json
+{
+  "id": 1,
+  "user": {
+    "id": 1,
+    "name": "Jean Dupont",
+    "email": "jean@example.com"
+  },
+  "products": [
+    {
+      "id": 10,
+      "product_name": "Produit A",
+      "pivot": {
+        "quantity": 2
+      }
+    }
+  ],
+  "total_amount": 100.5,
+  "status": "pending",
+  "order_date": "2025-08-01"
+}
+```
+
+---
+
+### ✏️ Mettre à jour une commande
+
+**URL :** `PUT /api/orders/{order}`
+
+**Champs acceptés (optionnels) :**
+
+- `user_id` (integer, doit exister dans users)  
+- `total_amount` (float, ≥ 0)  
+- `status` (string, doit être une valeur dans `Order::STATUSES`)  
+- `order_date` (date)
+
+**Réponse (succès) :**
+```json
+{
+  "id": 1,
+  "user_id": 1,
+  "total_amount": 120.0,
+  "status": "confirmed",
+  "order_date": "2025-08-02"
+}
+```
+
+---
+
+### 🗑️ Supprimer une commande
+
+**URL :** `DELETE /api/orders/{order}`
+
+**Réponse (succès) :**
+```json
+{
+  "message": "Order deleted successfully"
+}
+```
+## 🔖 API Gestion des Tags
+
+### Contrôleur : `TagController`
+
+---
+
+### ➕ Attacher un tag à un contenu (post ou produit)
+
+**URL :** `POST /api/tags/attach`
+
+**Champs requis :**
+
+- `tag_name` (string, requis, max:255) — Nom du tag à attacher (le tag est créé s’il n’existe pas)  
+- `taggable_id` (integer, requis) — ID de l’objet (post ou produit) auquel attacher le tag  
+- `taggable_type` (string, requis) — Type de l’objet, valeur possible : `post` ou `product`
+
+**Description :**  
+Attache un tag à un post ou un produit en évitant les doublons.
+
+**Réponse (succès) :**
+```json
+{
+  "message": "Tag attaché avec succès.",
+  "tag": {
+    "id": 5,
+    "tag_name": "exemple"
+  }
+}
+```
+
+---
+
+### ➖ Détacher un tag d’un contenu (post ou produit)
+
+**URL :** `POST /api/tags/detach`
+
+**Champs requis :**
+
+- `tag_id` (integer, requis, doit exister dans la table tags) — ID du tag à détacher  
+- `taggable_id` (integer, requis) — ID de l’objet (post ou produit) dont on veut retirer le tag  
+- `taggable_type` (string, requis) — Type de l’objet, valeur possible : `post` ou `product`
+
+**Description :**  
+Détache un tag d’un post ou produit. Retourne une erreur 404 si la relation n’existe pas.
+
+**Réponse (succès) :**
+```json
+{
+  "message": "Tag détaché avec succès."
+}
+```
+
+**Réponse (relation inexistante) :**
+```json
+{
+  "message": "Aucune relation trouvée entre ce contenu et ce tag."
+}
+```
+Status HTTP : 404
+
+---
+
+### Remarque
+
+- Les modèles `Post` et `Product` doivent avoir une relation polymorphe `tags()` définie.  
+- La création automatique du tag évite la duplication dans la table `tags`.  
+- La méthode `syncWithoutDetaching` évite d’attacher plusieurs fois le même tag au même contenu.
+
+
+## 📂 API Sous-catégories
+
+### Contrôleur : `SubcategoryController`
+
+---
+
+### 📋 Liste des sous-catégories
+
+**URL :** `GET /api/subcategories`
+
+**Description :**  
+Retourne la liste de toutes les sous-catégories avec leur catégorie associée.
+
+**Réponse (succès) :**
+```json
+[
+  {
+    "id": 1,
+    "name": "Sous-catégorie A",
+    "category": {
+      "id": 5,
+      "name": "Catégorie X"
+    }
+  },
+  {
+    "id": 2,
+    "name": "Sous-catégorie B",
+    "category": {
+      "id": 3,
+      "name": "Catégorie Y"
+    }
+  }
+]
+```
+
+---
+
+### ➕ Créer une nouvelle sous-catégorie
+
+**URL :** `POST /api/subcategories`
+
+**Paramètres (JSON ou form-data) :**
+
+- `name` (string, requis, max 255)
+- `category_id` (integer, requis, doit exister dans la table `categories`)
+
+**Réponse (succès) :**
+```json
+{
+  "message": "Sous-catégorie créée avec succès.",
+  "subcategory": {
+    "id": 10,
+    "name": "Nouvelle sous-catégorie",
+    "category_id": 5
+  }
+}
+```
+
+---
+
+### 🔍 Afficher une sous-catégorie spécifique
+
+**URL :** `GET /api/subcategories/{id}`
+
+**Description :**  
+Retourne la sous-catégorie avec sa catégorie associée.
+
+**Réponse (succès) :**
+```json
+{
+  "id": 10,
+  "name": "Sous-catégorie A",
+  "category": {
+    "id": 5,
+    "name": "Catégorie X"
+  }
+}
+```
+
+**Réponse (sous-catégorie non trouvée) :**
+```json
+{
+  "message": "Sous-catégorie non trouvée"
+}
+```
+Statut HTTP : 404
+
+---
+
+### ✏️ Mettre à jour une sous-catégorie
+
+**URL :** `PUT /api/subcategories/{id}`
+
+**Paramètres (JSON ou form-data) :**
+
+- `name` (string, optionnel, max 255)
+- `category_id` (integer, optionnel, doit exister dans la table `categories`)
+
+**Réponse (succès) :**
+```json
+{
+  "message": "Sous-catégorie mise à jour avec succès.",
+  "subcategory": {
+    "id": 10,
+    "name": "Nom mis à jour",
+    "category_id": 6
+  }
+}
+```
+
+**Réponse (sous-catégorie non trouvée) :**
+```json
+{
+  "message": "Sous-catégorie non trouvée"
+}
+```
+Statut HTTP : 404
+
+---
+
+### 🗑️ Supprimer une sous-catégorie
+
+**URL :** `DELETE /api/subcategories/{id}`
+
+**Réponse (succès) :**
+```json
+{
+  "message": "Sous-catégorie supprimée avec succès."
+}
+```
+
+**Réponse (sous-catégorie non trouvée) :**
+```json
+{
+  "message": "Sous-catégorie non trouvée"
+}
+```
+Statut HTTP : 404
+
+---
+
+### Remarques
+
+- La relation `category` doit être définie dans le modèle `Subcategory`.  
+- La validation garantit que la sous-catégorie est toujours liée à une catégorie existante.
+
