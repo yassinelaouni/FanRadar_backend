@@ -17,45 +17,61 @@ class OrderController extends Controller
         return response()->json($orders);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
+
 
     /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
-    {
-        $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'total_amount' => 'required|numeric|min:0',
-            'status' => 'in:pending,confirmed,shipped,delivered,cancelled',
-            'order_date' => 'required|date',
-            'products' => 'required|array',
-            'products.*.product_id' => 'required|exists:products,id',
-            'products.*.quantity' => 'required|integer|min:1',
-        ]);
+{
+    $request->validate([
+        'user_id' => 'required|exists:users,id',
+        'total_amount' => 'required|numeric|min:0',
+        'status' => 'in:' . implode(',', Order::STATUSES),
+        'order_date' => 'required|date',
+        'products' => 'required|array',
+        'products.*.product_id' => 'required|exists:products,id',
+        'products.*.quantity' => 'required|integer|min:1',
+    ]);
 
-        $order = Order::create([
-            'user_id' => $request->user_id,
-            'total_amount' => $request->total_amount,
-            'status' => $request->status ?? 'pending',
-            'order_date' => $request->order_date,
-        ]);
-
-        // Attacher les produits à la commande
-        foreach ($request->products as $productData) {
-            $order->products()->attach($productData['product_id'], [
-                'quantity' => $productData['quantity']
-            ]);
+    // 1. Vérification du stock de chaque produit
+    foreach ($request->products as $productData) {
+        $product = Product::find($productData['product_id']);
+        if (!$product) {
+            return response()->json(['error' => "Produit ID {$productData['product_id']} introuvable."], 404);
         }
 
-        return response()->json($order->load('products'), 201);
+        if ($product->stock < $productData['quantity']) {
+            return response()->json([
+                'error' => "Stock insuffisant pour le produit '{$product->product_name}'. Stock disponible : {$product->stock}, demandé : {$productData['quantity']}."
+            ], 422);
+        }
     }
+
+    // 2. Création de la commande
+    $order = Order::create([
+        'user_id' => $request->user_id,
+        'total_amount' => $request->total_amount,
+        'status' => $request->status ?? 'pending',
+        'order_date' => $request->order_date,
+    ]);
+
+    // 3. Attachement des produits + décrémentation du stock
+    foreach ($request->products as $productData) {
+        $product = Product::find($productData['product_id']);
+
+        // Attachement à la commande
+        $order->products()->attach($product->id, [
+            'quantity' => $productData['quantity'],
+        ]);
+
+        // Mise à jour du stock
+        $product->decrement('stock', $productData['quantity']);
+    }
+
+    return response()->json($order->load('products'), 201);
+}
+
 
     /**
      * Display the specified resource.
@@ -66,14 +82,6 @@ class OrderController extends Controller
     }
 
     /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
-    }
-
-    /**
      * Update the specified resource in storage.
      */
     public function update(Request $request, Order $order)
@@ -81,7 +89,7 @@ class OrderController extends Controller
         $request->validate([
             'user_id' => 'exists:users,id',
             'total_amount' => 'numeric|min:0',
-            'status' => 'in:pending,confirmed,shipped,delivered,cancelled',
+            'status' => 'in:' . implode(',', Order::STATUSES),
             'order_date' => 'date',
         ]);
 

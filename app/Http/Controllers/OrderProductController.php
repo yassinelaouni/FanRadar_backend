@@ -18,13 +18,7 @@ class OrderProductController extends Controller
         return response()->json($orderProducts);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
+
 
     /**
      * Store a newly created resource in storage.
@@ -49,13 +43,6 @@ class OrderProductController extends Controller
         return response()->json($orderProduct->load(['order', 'product']));
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
-    }
 
     /**
      * Update the specified resource in storage.

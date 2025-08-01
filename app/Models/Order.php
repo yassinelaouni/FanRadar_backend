@@ -21,6 +21,14 @@ class Order extends Model
         'order_date' => 'datetime',
     ];
 
+     const STATUSES = [
+        'pending',
+        'confirmed',
+        'shipped',
+        'delivered',
+        'cancelled',
+    ];
+
     // Relation avec User
     public function user()
     {
