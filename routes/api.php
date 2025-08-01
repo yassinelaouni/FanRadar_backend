@@ -4,6 +4,8 @@ use App\Http\Controllers\Api\AuthentificationController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderProductController;
+use App\Http\Controllers\PostController;
+use App\Http\Controllers\TagController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -30,6 +32,13 @@ Route::post('/products', [ProductController::class, 'store']);
 Route::put('/products/{product}', [ProductController::class, 'update']);
 Route::delete('/products/{product}', [ProductController::class, 'destroy']);
 
+// � Post - Routes publiques
+Route::get('/posts', [PostController::class, 'index']);
+Route::get('/posts/{post}', [PostController::class, 'show']);
+Route::post('/posts', [PostController::class, 'store']);
+Route::put('/posts/{post}', [PostController::class, 'update']);
+Route::delete('/posts/{post}', [PostController::class, 'destroy']);
+
 // 🛒 COMMANDES - Routes publiques (pour test uniquement)
 Route::get('/orders', [OrderController::class, 'index']);
 Route::get('/orders/{order}', [OrderController::class, 'show']);
@@ -37,8 +46,10 @@ Route::post('/orders', [OrderController::class, 'store']);
 Route::get('/orders/{order}', [OrderController::class, 'destroy']);
 Route::get('/orders/{order}', [OrderController::class, 'update']);
 
-// 🔗 PRODUITS DE COMMANDE - Routes publiques (pour test uniquement)
-Route::get('/order-products', [OrderProductController::class, 'index']);
-Route::get('/order-products/{orderProduct}', [OrderProductController::class, 'show']);
+
+Route::post('/tags/attach', [TagController::class, 'attachTag']);// donner et cree un tage pour un post ou product
+Route::delete('/tags/detach', [TagController::class, 'detachTag']);
+
+
 
 

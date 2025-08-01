@@ -17,6 +17,7 @@ class Product extends Model
         'promotion',
         'sale_start_date',
         'sale_end_date',
+        'user_id',
     ];
 
     protected $casts = [
@@ -38,4 +39,14 @@ class Product extends Model
                     ->withPivot('quantity')
                     ->withTimestamps();
     }
+
+    public function medias()
+    {
+        return $this->morphMany(Media::class, 'mediable');
+    }
+    public function tags()
+    {
+        return $this->morphToMany(Tag::class, 'taggable');
+    }
+
 }
