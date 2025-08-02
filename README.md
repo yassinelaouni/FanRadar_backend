@@ -626,11 +626,143 @@ Status HTTP : 404
 
 ---
 
-### Remarque
+## 📁 API Catégories
 
-- Les modèles `Post` et `Product` doivent avoir une relation polymorphe `tags()` définie.  
-- La création automatique du tag évite la duplication dans la table `tags`.  
-- La méthode `syncWithoutDetaching` évite d’attacher plusieurs fois le même tag au même contenu.
+### Contrôleur : `CategoryController`
+
+---
+
+### 📋 Liste des catégories
+
+**URL :** `GET /api/categories`  
+**Description :** Récupère toutes les catégories.
+
+**Réponse (succès) :**
+```json
+[
+  {
+    "id": 1,
+    "name": "Catégorie A"
+  },
+  {
+    "id": 2,
+    "name": "Catégorie B"
+  }
+]
+```
+
+---
+
+### 🔍 Afficher une catégorie avec ses sous-catégories
+
+**URL :** `GET /api/categories/{id}`  
+**Description :** Récupère une catégorie par son ID, avec ses sous-catégories associées.
+
+**Réponse (succès) :**
+```json
+{
+  "id": 1,
+  "name": "Catégorie A",
+  "subcategories": [
+    {
+      "id": 10,
+      "name": "Sous-catégorie 1",
+      "category_id": 1
+    },
+    {
+      "id": 11,
+      "name": "Sous-catégorie 2",
+      "category_id": 1
+    }
+  ]
+}
+```
+
+**Réponse (échec - catégorie non trouvée) :**
+```json
+{
+  "message": "Catégorie non trouvée"
+}
+```
+Statut HTTP : `404`
+
+---
+
+### ➕ Créer une nouvelle catégorie
+
+**URL :** `POST /api/categories`  
+**Description :** Crée une nouvelle catégorie.
+
+**Paramètres requis (JSON ou form-data) :**
+- `name` (string, requis, max 255)
+
+**Réponse (succès) :**
+```json
+{
+  "message": "Catégorie créée avec succès",
+  "category": {
+    "id": 3,
+    "name": "Nouvelle Catégorie"
+  }
+}
+```
+
+**Code HTTP :** `201 Created`
+
+---
+
+### ✏️ Mettre à jour une catégorie
+
+**URL :** `PUT /api/categories/{id}`  
+**Description :** Met à jour le nom d'une catégorie.
+
+**Paramètres (JSON ou form-data) :**
+- `name` (string, optionnel, max 255)
+
+**Réponse (succès) :**
+```json
+{
+  "message": "Catégorie mise à jour avec succès",
+  "category": {
+    "id": 1,
+    "name": "Nom mis à jour"
+  }
+}
+```
+
+**Réponse (échec - catégorie non trouvée) :**
+```json
+{
+  "message": "Catégorie non trouvée"
+}
+```
+Statut HTTP : `404`
+
+---
+
+### 🗑️ Supprimer une catégorie
+
+**URL :** `DELETE /api/categories/{id}`  
+**Description :** Supprime une catégorie existante.
+
+**Réponse (succès) :**
+```json
+{
+  "message": "Catégorie supprimée avec succès"
+}
+```
+
+**Réponse (échec - catégorie non trouvée) :**
+```json
+{
+  "message": "Catégorie non trouvée"
+}
+```
+Statut HTTP : `404`
+
+---
+
+
 
 
 ## 📂 API Sous-catégories
@@ -773,9 +905,4 @@ Statut HTTP : 404
 Statut HTTP : 404
 
 ---
-
-### Remarques
-
-- La relation `category` doit être définie dans le modèle `Subcategory`.  
-- La validation garantit que la sous-catégorie est toujours liée à une catégorie existante.
 
