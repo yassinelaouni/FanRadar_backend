@@ -22,7 +22,7 @@ class Post extends Model
     }
 
     // Relation polymorphe vers medias (si tu veux gérer ça)
-    public function medias()
+    public function media()
     {
         return $this->morphMany(Media::class, 'mediable');
     }
@@ -33,6 +33,10 @@ class Post extends Model
 public function subcategory()
 {
     return $this->belongsTo(Subcategory::class);
+}
+public function category()
+{
+    return $this->belongsTo(Category::class, 'category_id');
 }
 
 

@@ -53,7 +53,7 @@ Route::put('/orders/{order}', [OrderController::class, 'update']);
 Route::post('/tags/attach', [TagController::class, 'attachTag']);// donner et cree un tage pour un post ou product
 Route::delete('/tags/detach', [TagController::class, 'detachTag']);
 
-
+// cette Partie de categories et commun entre yassin et oucharou
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/categories/{category}', [CategoryController::class, 'show']);
 Route::post('/categories', [CategoryController::class, 'store']);
@@ -145,6 +145,56 @@ Route::get('/store/products', [PersonnaliseController::class, 'getStoreProducts'
 // UPLOAD IMAGE
 // ====================
 Route::post('/upload/image', [PersonnaliseController::class, 'uploadImage']);
+
+// ========== Partie des Api de Oucharou ==========
+// ROLES & PERMISSIONS
+// ====================
+Route::get('/roles-permissions', [\App\Http\Controllers\Api\M_Controller::class, 'getAllRolesAndPermissions']);
+
+// ====================
+// USER MANAGEMENT
+// ====================
+Route::get('/users', [\App\Http\Controllers\Api\M_Controller::class, 'getAllUsers']);
+Route::get('/user/{value}', [\App\Http\Controllers\Api\M_Controller::class, 'getUser']);
+Route::post('/users', [\App\Http\Controllers\Api\M_Controller::class, 'addUser']);
+Route::put('/users/{id}', [\App\Http\Controllers\Api\M_Controller::class, 'updateUser']);
+
+// ====================
+// CATEGORY & SUBCATEGORY MANAGEMENT (M_Controller)
+// ====================
+Route::get('/categories-simple', [\App\Http\Controllers\Api\M_Controller::class, 'getCategoriesSimple']);
+Route::get('/subcategories-simple', [\App\Http\Controllers\Api\M_Controller::class, 'getSubcategoriesSimple']);
+Route::get('/categories-with-subs', [\App\Http\Controllers\Api\M_Controller::class, 'getCategoriesWithSubs']);
+Route::post('/categories-simple', [\App\Http\Controllers\Api\M_Controller::class, 'addCategorySimple']);
+Route::post('/subcategories-simple', [\App\Http\Controllers\Api\M_Controller::class, 'addSubcategorySimple']);
+Route::delete('/categories-simple/{id}', [\App\Http\Controllers\Api\M_Controller::class, 'deleteCategorySimple']);
+Route::delete('/subcategories-simple/{id}', [\App\Http\Controllers\Api\M_Controller::class, 'deleteSubcategorySimple']);
+
+// ====================
+// TAGS MANAGEMENT (M_Controller)
+// ====================
+Route::get('/tags-simple', [\App\Http\Controllers\Api\M_Controller::class, 'getAllTagsSimple']);
+Route::post('/tags-simple', [\App\Http\Controllers\Api\M_Controller::class, 'addTagSimple']);
+
+// ====================
+// POSTS MANAGEMENT (M_Controller)
+// ====================
+Route::get('/posts-simple', [\App\Http\Controllers\Api\M_Controller::class, 'getAllPostsSimple']);
+Route::post('/posts-simple', [\App\Http\Controllers\Api\M_Controller::class, 'addPostSimple']);
+Route::delete('/posts-simple/{id}', [\App\Http\Controllers\Api\M_Controller::class, 'deletePostSimple']);
+Route::put('/posts-simple/{id}', [\App\Http\Controllers\Api\M_Controller::class, 'updatePostSimple']);
+Route::get('/posts-by-tag/{tag}', [\App\Http\Controllers\Api\M_Controller::class, 'getPostsByTagSimple']);
+Route::get('/posts-by-category-sub', [\App\Http\Controllers\Api\M_Controller::class, 'getPostsByCategorySubSimple']);
+
+// ====================
+// PRODUCTS MANAGEMENT (M_Controller)
+// ====================
+Route::get('/products-simple', [\App\Http\Controllers\Api\M_Controller::class, 'getAllProductsSimple']);
+Route::post('/products-simple', [\App\Http\Controllers\Api\M_Controller::class, 'addProductSimple']);
+Route::get('/drops-simple', [\App\Http\Controllers\Api\M_Controller::class, 'getDropsSimple']);
+Route::post('/drops-simple', [\App\Http\Controllers\Api\M_Controller::class, 'addDropSimple']);
+Route::put('/products-simple/{id}', [\App\Http\Controllers\Api\M_Controller::class, 'updateProductSimple']);
+Route::delete('/products-simple/{id}', [\App\Http\Controllers\Api\M_Controller::class, 'deleteProductSimple']);
 
 
 
