@@ -41,7 +41,24 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('posts', function (Blueprint $table) {
-            $table->dropColumn(['category_id', 'subcategory_id', 'fandom', 'likes', 'content', 'media']);
+            if (Schema::hasColumn('posts', 'category_id')) {
+                $table->dropColumn('category_id');
+            }
+            if (Schema::hasColumn('posts', 'subcategory_id')) {
+                $table->dropColumn('subcategory_id');
+            }
+            if (Schema::hasColumn('posts', 'fandom')) {
+                $table->dropColumn('fandom');
+            }
+            if (Schema::hasColumn('posts', 'likes')) {
+                $table->dropColumn('likes');
+            }
+            if (Schema::hasColumn('posts', 'content')) {
+                $table->dropColumn('content');
+            }
+            if (Schema::hasColumn('posts', 'media')) {
+                $table->dropColumn('media');
+            }
         });
     }
 };

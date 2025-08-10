@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Spatie\Permission\Models\Role;
 
 class M_Controller extends Controller
 {
@@ -18,12 +19,18 @@ class M_Controller extends Controller
      */
     public function getAllRolesAndPermissions()
     {
-        // Nécessite le package spatie/laravel-permission
         $roles = \Spatie\Permission\Models\Role::with('permissions')->get();
         $result = $roles->map(function($role) {
+            // Correction : $role->permissions peut être une string (json) ou une relation
+            $permissions = is_iterable($role->permissions) ? collect($role->permissions)->pluck('name')->toArray() : [];
+            $permissions_array = is_string($role->permissions) ? json_decode($role->permissions, true) : [];
             return [
-                'role' => $role->name,
-                'permissions' => $role->permissions->pluck('name')->toArray()
+                'id' => $role->id,
+                'name' => $role->name,
+                'guard_name' => $role->guard_name,
+                'description' => $role->description,
+                'permissions' => $permissions,
+                'permissions_array' => $permissions_array,
             ];
         });
         return response()->json([
@@ -38,17 +45,17 @@ class M_Controller extends Controller
      */
     public function getAllUsers()
     {
-        $users = \App\Models\User::with('roles')->get()->map(function($user) {
+        $users = \App\Models\User::all()->map(function($user) {
             return [
                 'id' => $user->id,
-                'username' => $user->username ?? strtolower($user->first_name . $user->last_name),
+                'username' => $user->username ?? null,
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
                 'email' => $user->email,
                 'status' => $user->status ?? 'active',
-                'join_date' => $user->created_at,
-                'role' => $user->roles->pluck('name')->first() ?? null,
-                'image' => $user->profile_image
+                'join_date' => $user->created_at ? $user->created_at->toDateString() : null,
+                'role' => $user->role ?? null,
+                'image' => $user->profile_image,
             ];
         });
         return response()->json(['success' => true, 'data' => $users]);
@@ -62,7 +69,6 @@ class M_Controller extends Controller
     {
         $user = \App\Models\User::where('id', $value)
             ->orWhere('email', $value)
-            ->with('roles')
             ->first();
         if (!$user) {
             return response()->json(['success' => false, 'error' => 'User not found'], 404);
@@ -71,14 +77,14 @@ class M_Controller extends Controller
             'success' => true,
             'data' => [
                 'id' => $user->id,
-                'username' => $user->username ?? strtolower($user->first_name . $user->last_name),
+                'username' => $user->username ?? null,
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
                 'email' => $user->email,
                 'status' => $user->status ?? 'active',
-                'join_date' => $user->created_at,
-                'role' => $user->roles->pluck('name')->first() ?? null,
-                'image' => $user->profile_image
+                'join_date' => $user->created_at ? $user->created_at->toDateString() : null,
+                'role' => $user->role ?? null,
+                'image' => $user->profile_image,
             ]
         ]);
     }
@@ -93,7 +99,7 @@ class M_Controller extends Controller
             'first_name' => 'required|string',
             'last_name' => 'required|string',
             'email' => 'required|email|unique:users,email',
-            'role' => 'required|string',
+            'role' => 'required|in:user,admin',
             'password' => 'required|string|min:6',
         ]);
         $user = \App\Models\User::create([
@@ -102,9 +108,9 @@ class M_Controller extends Controller
             'email' => $request->email,
             'status' => 'active',
             'profile_image' => $request->profile_image ?? 'default.png',
-            'password' => bcrypt($request->password)
+            'password' => bcrypt($request->password),
+            'role' => $request->role,
         ]);
-        $user->assignRole($request->role);
         return response()->json(['success' => true, 'data' => $user], 201);
     }
 
@@ -118,16 +124,24 @@ class M_Controller extends Controller
         if (!$user) {
             return response()->json(['success' => false, 'error' => 'User not found'], 404);
         }
-        $user->update($request->only(['first_name', 'last_name', 'email', 'status', 'profile_image']));
-        if ($request->has('role')) {
-            $user->syncRoles([$request->role]);
+        // Met à jour tous les champs envoyés dans la requête, sans toucher aux autres
+        $updatable = ['first_name', 'last_name', 'email', 'status', 'profile_image', 'role', 'password'];
+        foreach ($updatable as $field) {
+            if ($request->has($field)) {
+                if ($field === 'password') {
+                    $user->password = bcrypt($request->password);
+                } else {
+                    $user->$field = $request->$field;
+                }
+            }
         }
+        $user->save();
         return response()->json(['success' => true, 'data' => $user]);
     }
 
     /**
-     * a. Get categories (id, name)
-     * Route: GET /api/categories-simple
+     * f. Get categories (id, name)
+     * URL: GET /api/categories-simple
      */
     public function getCategoriesSimple()
     {
@@ -136,8 +150,8 @@ class M_Controller extends Controller
     }
 
     /**
-     * b. Get subcategories (id, cat_id, name)
-     * Route: GET /api/subcategories-simple
+     * g. Get subcategories (id, cat_id, name)
+     * URL: GET /api/subcategories-simple
      */
     public function getSubcategoriesSimple()
     {
@@ -146,8 +160,8 @@ class M_Controller extends Controller
     }
 
     /**
-     * c. Get categories with subcategories
-     * Route: GET /api/categories-with-subs
+     * h. Get categories with sub category (id_cat, name, sub : [id, name])
+     * URL: GET /api/categories-with-subs
      */
     public function getCategoriesWithSubs()
     {
@@ -168,8 +182,8 @@ class M_Controller extends Controller
     }
 
     /**
-     * d. Add category (name)
-     * Route: POST /api/categories-simple
+     * i. Add category (name)
+     * URL: POST /api/categories-simple
      */
     public function addCategorySimple(Request $request)
     {
@@ -179,8 +193,8 @@ class M_Controller extends Controller
     }
 
     /**
-     * e. Add subcategory (name, id_cat)
-     * Route: POST /api/subcategories-simple
+     * j. Add subcategory (name, id_cat)
+     * URL: POST /api/subcategories-simple
      */
     public function addSubcategorySimple(Request $request)
     {
@@ -190,8 +204,8 @@ class M_Controller extends Controller
     }
 
     /**
-     * f. Delete category (id), delete subcategory (id)
-     * Route: DELETE /api/categories-simple/{id}, DELETE /api/subcategories-simple/{id}
+     * k. Delete category (id), delete subcategory (id)
+     * URL: DELETE /api/categories-simple/{id}, DELETE /api/subcategories-simple/{id}
      */
     public function deleteCategorySimple($id)
     {
@@ -214,7 +228,7 @@ class M_Controller extends Controller
      */
     public function getAllTagsSimple()
     {
-        $tags = \App\Models\Tag::select('id', 'tag_name')->get();
+        $tags = \App\Models\Tag::select('id', 'tag_name as tag')->get();
         return response()->json(['success' => true, 'data' => $tags]);
     }
 
@@ -238,6 +252,12 @@ class M_Controller extends Controller
         $posts = \App\Models\Post::with(['user:id,first_name', 'category:id,name', 'media'])
             ->get()
             ->map(function($post) {
+                $media = null;
+                if (is_object($post->media) && method_exists($post->media, 'count') && $post->media->count() > 0) {
+                    $media = ['url' => $post->media->first()->url];
+                } elseif (is_string($post->media) && !empty($post->media)) {
+                    $media = ['url' => $post->media];
+                }
                 return [
                     'id' => $post->id,
                     'author' => $post->user ? trim($post->user->first_name . ' ' . ($post->user->last_name ?? '')) : null,
@@ -247,7 +267,7 @@ class M_Controller extends Controller
                     'category' => $post->category->name ?? null,
                     'title' => $post->title,
                     'content' => $post->content,
-                    'media' => ($post->media && $post->media->count() > 0) ? ['url' => $post->media->first()->url] : null
+                    'media' => $media
                 ];
             });
         return response()->json(['success' => true, 'data' => $posts]);
@@ -324,50 +344,69 @@ class M_Controller extends Controller
     /**
      * PRODUCTS
      */
-    // a. Get products (only products no drops / no end date)
+    // a. Get products (id, name, type, price, stock, date, revenue, description) (no drops)
+    // URL: GET /api/products-simple
     public function getAllProductsSimple()
     {
         $products = \App\Models\Product::whereNull('sale_end_date')
-            ->select('id', 'product_name', 'type', 'price', 'stock', 'promotion', 'sale_start_date as date', 'revenue', 'description')
-            ->get();
+            ->select('id', 'product_name as name', 'type', 'price', 'stock', 'sale_start_date as date', 'revenue', 'description')
+            ->get()
+            ->map(function($product) {
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'type' => $product->type,
+                    'price' => $product->price,
+                    'stock' => $product->stock,
+                    'date' => $product->date,
+                    'revenue' => $product->revenue ?? 0,
+                   
+                ];
+            });
         return response()->json(['success' => true, 'data' => $products]);
     }
 
-    // b. Add product
+    // add product (name, type, date, price, stock) - revenue calculé automatiquement
+    // URL: POST /api/products-simple
     public function addProductSimple(Request $request)
     {
         $request->validate([
-            'product_name' => 'required|string',
+            'name' => 'required|string',
             'type' => 'required|string',
-            'sale_start_date' => 'required|date',
+            'date' => 'required|date',
             'price' => 'required|numeric',
             'stock' => 'required|integer',
         ]);
+        // Exemple de calcul automatique du revenu (prix * stock)
+        $revenue = $request->price * $request->stock;
         $product = \App\Models\Product::create([
-            'product_name' => $request->product_name,
+            'product_name' => $request->name,
             'type' => $request->type,
-            'sale_start_date' => $request->sale_start_date,
+            'sale_start_date' => $request->date,
             'price' => $request->price,
             'stock' => $request->stock,
+            'revenue' => $revenue,
             'content_status' => 'active',
         ]);
         return response()->json(['success' => true, 'data' => $product], 201);
     }
 
-    // c. Get drops (start and end date)
+    // get drops (start and end date)
+    // URL: GET /api/drops-simple
     public function getDropsSimple()
     {
         $drops = \App\Models\Product::whereNotNull('sale_start_date')->whereNotNull('sale_end_date')
-            ->select('id', 'product_name', 'type', 'price', 'stock', 'promotion', 'sale_start_date', 'sale_end_date', 'revenue')
+            ->select('id', 'product_name as name', 'type', 'price', 'stock', 'promotion', 'sale_start_date', 'sale_end_date', 'revenue', 'description')
             ->get();
         return response()->json(['success' => true, 'data' => $drops]);
     }
 
-    // d. Add drop
+    // add drop
+    // URL: POST /api/drops-simple
     public function addDropSimple(Request $request)
     {
         $request->validate([
-            'product_name' => 'required|string',
+            'name' => 'required|string',
             'type' => 'nullable|string',
             'price' => 'required|numeric',
             'stock' => 'required|integer',
@@ -378,7 +417,7 @@ class M_Controller extends Controller
             'revenue' => 'nullable|numeric',
         ]);
         $drop = \App\Models\Product::create([
-            'product_name' => $request->product_name,
+            'product_name' => $request->name,
             'type' => $request->type,
             'price' => $request->price,
             'stock' => $request->stock,
@@ -392,18 +431,24 @@ class M_Controller extends Controller
         return response()->json(['success' => true, 'data' => $drop], 201);
     }
 
-    // e. Update product
+    // update product or drop
+    // URL: PUT /api/products-simple/{id}
     public function updateProductSimple(Request $request, $id)
     {
         $product = \App\Models\Product::find($id);
         if (!$product) return response()->json(['success' => false, 'error' => 'Product not found'], 404);
-        $product->update($request->only([
-            'product_name', 'type', 'price', 'stock', 'promotion', 'sale_start_date', 'sale_end_date', 'description', 'revenue'
-        ]));
+        $fields = ['product_name', 'type', 'price', 'stock', 'promotion', 'sale_start_date', 'sale_end_date', 'description', 'revenue'];
+        foreach ($fields as $field) {
+            if ($request->has($field)) {
+                $product->$field = $request->$field;
+            }
+        }
+        $product->save();
         return response()->json(['success' => true, 'data' => $product]);
     }
 
-    // e. Delete product
+    // delete product or drop
+    // URL: DELETE /api/products-simple/{id}
     public function deleteProductSimple($id)
     {
         $product = \App\Models\Product::find($id);

@@ -187,6 +187,7 @@ Route::get('/posts-by-tag/{tag}', [\App\Http\Controllers\Api\M_Controller::class
 Route::get('/posts-by-category-sub', [\App\Http\Controllers\Api\M_Controller::class, 'getPostsByCategorySubSimple']);
 
 // ====================
+
 // PRODUCTS MANAGEMENT (M_Controller)
 // ====================
 Route::get('/products-simple', [\App\Http\Controllers\Api\M_Controller::class, 'getAllProductsSimple']);
