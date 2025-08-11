@@ -100,9 +100,14 @@ class AuthentificationController extends Controller
 
     public function logout(Request $request)
             {
-                $request->user()->currentAccessToken()->delete();
-                return response()->json(['message' => 'Logout successful']);
-
+                $user = $request->user();
+                $token = $user ? $user->currentAccessToken() : null;
+                // Correction : vérifier que $token est bien une instance de PersonalAccessToken
+                if ($token && ($token instanceof \Laravel\Sanctum\PersonalAccessToken)) {
+                    $token->delete();
+                    return response()->json(['message' => 'Logout successful']);
+                }
+                return response()->json(['message' => 'No active session found'], 401);
             }
 
     public function logoutfromAllDevices(Request $request)

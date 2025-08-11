@@ -18,6 +18,9 @@ class Product extends Model
         'sale_start_date',
         'sale_end_date',
         'user_id',
+        'type',
+        'revenue',
+        'content_status',
     ];
 
     protected $casts = [
