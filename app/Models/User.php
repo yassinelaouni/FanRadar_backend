@@ -25,11 +25,7 @@ class User extends Authenticatable
         'email',
         'profile_image',
         'password',
-<<<<<<< HEAD
-        'role', // <-- AJOUTE ICI
-=======
         'role', // Ajouté pour permettre l'assignation du rôle lors de la création
->>>>>>> fe64118b03c9b446df17c10e8041d2ae1d79ee38
     ];
 
     /**

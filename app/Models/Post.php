@@ -14,6 +14,9 @@ class Post extends Model
         'schedule_at',
         'description',
         'content_status',
+
+        'subcategory_id',
+
     ];
 
      public function user()
@@ -30,14 +33,11 @@ class Post extends Model
     {
         return $this->morphToMany(Tag::class, 'taggable');
     }
-public function subcategory()
-{
-    return $this->belongsTo(Subcategory::class);
-}
-public function category()
-{
-    return $this->belongsTo(Category::class, 'category_id');
-}
+    public function subcategory()
+    {
+        return $this->belongsTo(SubCategory::class);
+    }
+
 
 
 }

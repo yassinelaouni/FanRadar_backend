@@ -10,7 +10,7 @@ class ProductController extends Controller
     // ✅ GET /api/products — Liste paginée des produits avec leurs médias
     public function index()
     {
-        $products = Product::with('medias')->paginate(10);
+        $products = Product::with(['medias', 'subcategory'])->paginate(10);
         return response()->json($products);
     }
 
@@ -25,12 +25,18 @@ class ProductController extends Controller
         'stock' => 'required|integer|min:0',
         'promotion' => 'nullable|integer|min:0|max:100',
         'user_id' => 'required|exists:users,id',
+        'subcategory_id' => 'nullable|exists:subcategories,id',
+        'type' => 'nullable|string|max:100',
+        'content_status' => 'nullable|in:active,inactive,draft',
         'sale_start_date' => 'nullable|date',
         'sale_end_date' => 'nullable|date|after_or_equal:sale_start_date',
         'medias' => 'nullable|array',
     ]);
 
-    $product = Product::create($validated);
+    $product = Product::create(array_merge($validated, [
+        'content_status' => $validated['content_status'] ?? 'active',
+        'revenue' => ($validated['price'] * $validated['stock']), // Calcul automatique du revenue
+    ]));
 
     // Gestion de l'upload des fichiers médias
     if ($request->hasFile('medias')) {
@@ -55,14 +61,14 @@ class ProductController extends Controller
 
     return response()->json([
         'message' => 'Produit créé avec succès.',
-        'product' => $product->load('medias')
+        'product' => $product->load(['medias', 'subcategory'])
     ], 201);
 }
 
     // ✅ GET /api/products/{product} — Afficher un seul produit
     public function show(Product $product)
     {
-        return response()->json($product->load('medias'));
+        return response()->json($product->load(['medias', 'subcategory']));
     }
 
     // ✅ PUT/PATCH /api/products/{product} — Modifier un produit (pas les médias ici)
@@ -74,15 +80,25 @@ class ProductController extends Controller
             'price' => 'required|numeric|min:0',
             'stock' => 'required|integer|min:0',
             'promotion' => 'nullable|integer|min:0|max:100',
+            'subcategory_id' => 'nullable|exists:subcategories,id',
+            'type' => 'nullable|string|max:100',
+            'content_status' => 'nullable|in:active,inactive,draft',
             'sale_start_date' => 'nullable|date',
             'sale_end_date' => 'nullable|date|after_or_equal:sale_start_date',
         ]);
+
+        // Recalculer le revenue si price ou stock changent
+        if (isset($validated['price']) || isset($validated['stock'])) {
+            $price = $validated['price'] ?? $product->price;
+            $stock = $validated['stock'] ?? $product->stock;
+            $validated['revenue'] = $price * $stock;
+        }
 
         $product->update($validated);
 
         return response()->json([
             'message' => 'Produit mis à jour.',
-            'product' => $product->load('medias')
+            'product' => $product->load(['medias', 'subcategory'])
         ]);
     }
 
