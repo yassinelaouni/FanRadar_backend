@@ -57,4 +57,16 @@ public function subcategory()
     return $this->belongsTo(SubCategory::class);
 }
 
+// Relation avec les favoris
+public function favorites()
+{
+    return $this->morphMany(Favorite::class, 'favoriteable');
+}
+
+// Utilisateurs qui ont mis ce produit en favori
+public function favoritedBy()
+{
+    return $this->morphToMany(User::class, 'favoriteable', 'favorites');
+}
+
 }

@@ -37,7 +37,20 @@ class Post extends Model
     {
         return $this->belongsTo(SubCategory::class);
     }
+    
+    public function category()
+    {
+        return $this->belongsTo(Category::class, 'category_id');
+    }
 
+    // Relation avec les favoris
+    public function favorites()
+    {
+        return $this->morphMany(Favorite::class, 'favoriteable');
+    }
 
-
-}
+    // Utilisateurs qui ont mis ce post en favori
+    public function favoritedBy()
+    {
+        return $this->morphToMany(User::class, 'favoriteable', 'favorites');
+    }

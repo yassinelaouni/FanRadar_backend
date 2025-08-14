@@ -56,4 +56,22 @@ class User extends Authenticatable
     {
         return $this->hasMany(Order::class);
     }
+
+    // Relation avec les favoris
+    public function favorites()
+    {
+        return $this->hasMany(Favorite::class);
+    }
+
+    // Posts favoris de l'utilisateur
+    public function favoritePosts()
+    {
+        return $this->morphedByMany(Post::class, 'favoriteable', 'favorites');
+    }
+
+    // Produits favoris de l'utilisateur
+    public function favoriteProducts()
+    {
+        return $this->morphedByMany(Product::class, 'favoriteable', 'favorites');
+    }
 }
