@@ -197,6 +197,16 @@ Route::post('/drops-simple', [\App\Http\Controllers\Api\M_Controller::class, 'ad
 Route::put('/products-simple/{id}', [\App\Http\Controllers\Api\M_Controller::class, 'updateProductSimple']);
 Route::delete('/products-simple/{id}', [\App\Http\Controllers\Api\M_Controller::class, 'deleteProductSimple']);
 
+// ====================
+// FAVORITES MANAGEMENT
+// ====================
+//not tested yet
+Route::post('/favorites', [\App\Http\Controllers\FavoriteController::class, 'addToFavorites']);
+Route::delete('/favorites', [\App\Http\Controllers\FavoriteController::class, 'removeFromFavorites']);
+Route::get('/users/{userId}/favorites', [\App\Http\Controllers\FavoriteController::class, 'getUserFavorites']);
+Route::get('/users/{userId}/favorites/{type}', [\App\Http\Controllers\FavoriteController::class, 'getUserFavoritesByType']);
+Route::get('/favorites/{type}/{id}/users', [  \App\Http\Controllers\FavoriteController::class, 'getItemFavoriteUsers']);
+
 
 
 

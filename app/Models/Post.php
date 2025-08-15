@@ -37,7 +37,7 @@ class Post extends Model
     {
         return $this->belongsTo(SubCategory::class);
     }
-    
+
     public function category()
     {
         return $this->belongsTo(Category::class, 'category_id');
@@ -54,3 +54,4 @@ class Post extends Model
     {
         return $this->morphToMany(User::class, 'favoriteable', 'favorites');
     }
+}
