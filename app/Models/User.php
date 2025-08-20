@@ -74,4 +74,61 @@ class User extends Authenticatable
     {
         return $this->morphedByMany(Product::class, 'favoriteable', 'favorites');
     }
+
+    // Relation avec les ratings donnés par l'utilisateur
+    public function ratings()
+    {
+        return $this->hasMany(Rating::class);
+    }
+
+    // Posts notés par l'utilisateur
+    public function ratedPosts()
+    {
+        return $this->morphedByMany(Post::class, 'rateable', 'ratings');
+    }
+
+    // Produits notés par l'utilisateur
+    public function ratedProducts()
+    {
+        return $this->morphedByMany(Product::class, 'rateable', 'ratings');
+    }
+
+    // Relations de follow
+    // Utilisateurs que cet utilisateur suit
+    public function following()
+    {
+        return $this->belongsToMany(User::class, 'follows', 'follower_id', 'following_id')
+            ->withTimestamps();
+    }
+
+    // Utilisateurs qui suivent cet utilisateur
+    public function followers()
+    {
+        return $this->belongsToMany(User::class, 'follows', 'following_id', 'follower_id')
+            ->withTimestamps();
+    }
+
+    // Vérifier si cet utilisateur suit un autre utilisateur
+    public function isFollowing($userId)
+    {
+        return $this->following()->where('following_id', $userId)->exists();
+    }
+
+    // Vérifier si cet utilisateur est suivi par un autre utilisateur
+    public function isFollowedBy($userId)
+    {
+        return $this->followers()->where('follower_id', $userId)->exists();
+    }
+
+    // Compter le nombre de personnes que cet utilisateur suit
+    public function followingCount()
+    {
+        return $this->following()->count();
+    }
+
+    // Compter le nombre de followers de cet utilisateur
+    public function followersCount()
+    {
+        return $this->followers()->count();
+    }
 }

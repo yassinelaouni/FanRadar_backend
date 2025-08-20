@@ -69,4 +69,28 @@ public function favoritedBy()
     return $this->morphToMany(User::class, 'favoriteable', 'favorites');
 }
 
+// Relation avec les ratings du produit
+public function ratings()
+{
+    return $this->morphMany(Rating::class, 'rateable');
+}
+
+// Utilisateurs qui ont noté ce produit
+public function ratedBy()
+{
+    return $this->morphToMany(User::class, 'rateable', 'ratings');
+}
+
+// Calculer la note moyenne du produit
+public function averageRating()
+{
+    return $this->ratings()->avg('evaluation');
+}
+
+// Compter le nombre total de ratings
+public function ratingsCount()
+{
+    return $this->ratings()->count();
+}
+
 }
