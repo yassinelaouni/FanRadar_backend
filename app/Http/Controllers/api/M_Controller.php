@@ -48,10 +48,8 @@ class M_Controller extends Controller
         $users = \App\Models\User::all()->map(function($user) {
             return [
                 'id' => $user->id,
-<<<<<<< HEAD
-=======
+
                 'username' => $user->username ?? null,
->>>>>>> fe64118b03c9b446df17c10e8041d2ae1d79ee38
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
                 'email' => $user->email,
@@ -80,10 +78,8 @@ class M_Controller extends Controller
             'success' => true,
             'data' => [
                 'id' => $user->id,
-<<<<<<< HEAD
-=======
+
                 'username' => $user->username ?? null,
->>>>>>> fe64118b03c9b446df17c10e8041d2ae1d79ee38
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
                 'email' => $user->email,
@@ -104,28 +100,23 @@ class M_Controller extends Controller
         $request->validate([
             'first_name' => 'required|string',
             'last_name' => 'required|string',
-            'email' => 'required|email|unique:users,email',
-<<<<<<< HEAD
-            'role' => 'in:user,admin',
-=======
+            'email' => 'required|email|unique:users,email',            'role' => 'in:user,admin',
             'role' => 'required|in:user,admin',
->>>>>>> fe64118b03c9b446df17c10e8041d2ae1d79ee38
             'password' => 'required|string|min:6',
         ]);
         $user = \App\Models\User::create([
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
             'email' => $request->email,
-<<<<<<< HEAD
             'profile_image' => $request->profile_image ?? 'default.png',
             'password' => bcrypt($request->password),
             'role' => $request->role ?? 'user', // <-- PREND LA VALEUR ENVOYÉE
-=======
+
             'status' => 'active',
             'profile_image' => $request->profile_image ?? 'default.png',
             'password' => bcrypt($request->password),
             'role' => $request->role,
->>>>>>> fe64118b03c9b446df17c10e8041d2ae1d79ee38
+
         ]);
         return response()->json(['success' => true, 'data' => $user], 201);
     }
@@ -163,7 +154,7 @@ class M_Controller extends Controller
     {
         $categories = \App\Models\Category::select('id', 'name')->get();
         return response()->json(['success' => true, 'data' => $categories]);
-    }
+    } 
 
     /**
      * g. Get subcategories (id, cat_id, name)
@@ -293,7 +284,7 @@ class M_Controller extends Controller
     public function addPostSimple(Request $request)
     {
         $request->validate([
-            'user_id' => 'required|integer|exists:users,id',
+            'author_id' => 'required|integer|exists:users,id',
             'title' => 'required|string',
             'content' => 'required|string',
             'category_id' => 'nullable|integer|exists:categories,id',
@@ -307,7 +298,6 @@ class M_Controller extends Controller
             'category_id' => $request->category_id,
             'subcategory_id' => $request->subcategory_id,
         ]);
-        // Media attach (if any)
         if ($request->has('media')) {
             foreach ($request->media as $mediaUrl) {
                 $post->media()->create(['url' => $mediaUrl]);

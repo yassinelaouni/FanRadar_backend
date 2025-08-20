@@ -432,14 +432,17 @@ class PersonnaliseController extends Controller
             ]
         ]);
     }
-    public function getSavedPosts() {
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'posts' => []
-            ]
-        ]);
-    }
+public function getSavedPosts(Request $request)
+{
+    $user = $request->user();
+    $posts = $user->savedPosts()->with(['media', 'category', 'user'])->get();
+
+    return response()->json([
+        'success' => true,
+        'data' => $posts
+    ]);
+}
+
     public function updateAvatar(Request $request) {
         return response()->json([
             'success' => true,
