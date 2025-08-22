@@ -435,11 +435,33 @@ class PersonnaliseController extends Controller
 public function getSavedPosts(Request $request)
 {
     $user = $request->user();
-    $posts = $user->savedPosts()->with(['media', 'category', 'user'])->get();
+
+    $posts = $user->savedPosts()
+        ->with(['media', 'user'])
+        ->get()
+        ->map(function ($post) {
+            return [
+                'id' => $post->id,
+                'content' => $post->content,
+                'media' => $post->media->pluck('file_path')->toArray(),
+                'author' => [
+                    'id' => $post->user->id,
+                    'name' => $post->user->name,
+                    'username' => $post->user->username,
+                    'avatar' => $post->user->profile_image,
+                ],
+                'likes' => $post->likes_count ?? 0,
+                'comments' => $post->comments_count ?? 0,
+                'shares' => $post->shares_count ?? 0,
+                'savedAt' => optional($post->pivot)->created_at ? $post->pivot->created_at->toIso8601String() : null,
+            ];
+        });
 
     return response()->json([
         'success' => true,
-        'data' => $posts
+        'data' => [
+            'posts' => $posts
+        ]
     ]);
 }
 
@@ -739,6 +761,21 @@ public function getSavedPosts(Request $request)
             'data' => [
                 'products' => $products
             ]
+        ]);
+    }
+
+    public function savePost(Request $request)
+    {
+        $request->validate([
+            'post_id' => 'required|exists:posts,id',
+        ]);
+
+        $user = $request->user();
+        $user->savedPosts()->syncWithoutDetaching($request->post_id);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Post saved successfully',
         ]);
     }
 }

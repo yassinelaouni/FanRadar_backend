@@ -11,13 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('media', function (Blueprint $table) {
+        Schema::create('saved_posts', function (Blueprint $table) {
             $table->id();
-            $table->string('file_path')->nullable();
-            $table->string('media_type')->nullable();
-            $table->unsignedBigInteger('mediable_id');
-            $table->string('mediable_type');//product ou post
-            $table->text('media')->nullable(); // ou $table->json('media')->nullable();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignId('post_id')->constrained()->onDelete('cascade');
             $table->timestamps();
         });
     }
@@ -27,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('media');
+        Schema::dropIfExists('saved_posts');
     }
 };

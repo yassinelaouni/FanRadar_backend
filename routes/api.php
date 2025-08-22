@@ -66,6 +66,31 @@ Route::post('/subcategories', [SubcategoryController::class, 'store']);
 Route::delete('/subcategories/{subcategory}', [SubcategoryController::class, 'destroy']);
 Route::put('/subcategories/{subcategory}', [SubcategoryController::class, 'update']);
 
+Route::post('/favorites', [\App\Http\Controllers\FavoriteController::class, 'addToFavorites']);
+Route::delete('/favorites', [\App\Http\Controllers\FavoriteController::class, 'removeFromFavorites']);
+Route::get('/favorites/check', [\App\Http\Controllers\FavoriteController::class, 'checkFavorite']);
+Route::get('/users/{userId}/favorites', [\App\Http\Controllers\FavoriteController::class, 'getUserFavorites']);
+Route::get('/users/{userId}/favorites/{type}', [\App\Http\Controllers\FavoriteController::class, 'getUserFavoritesByType']);
+Route::get('/favorites/{type}/{id}/users', [\App\Http\Controllers\FavoriteController::class, 'getItemFavoriteUsers']);
+
+Route::post('/ratings', [\App\Http\Controllers\RatingController::class, 'addOrUpdateRating']);
+Route::delete('/ratings', [\App\Http\Controllers\RatingController::class, 'deleteRating']);
+Route::get('/ratings/{type}/{id}', [\App\Http\Controllers\RatingController::class, 'getItemRatings']);
+Route::get('/ratings/{type}/{id}/statistics', [\App\Http\Controllers\RatingController::class, 'getItemRatingStatistics']);
+Route::get('/users/{userId}/ratings', [\App\Http\Controllers\RatingController::class, 'getUserRatings']);
+
+// ====================
+// FOLLOWS MANAGEMENT
+// ====================
+Route::post('/users/{userId}/follow', [\App\Http\Controllers\FollowController::class, 'followUser']);
+Route::delete('/users/{userId}/follow', [\App\Http\Controllers\FollowController::class, 'unfollowUser']);
+Route::get('/users/{userId}/followers', [\App\Http\Controllers\FollowController::class, 'getUserFollowers']);
+Route::get('/users/{userId}/following', [\App\Http\Controllers\FollowController::class, 'getUserFollowing']);
+Route::get('/users/{userId}/follow/check', [\App\Http\Controllers\FollowController::class, 'checkFollowStatus']);
+Route::get('/users/{userId}/follow/stats', [\App\Http\Controllers\FollowController::class, 'getUserFollowStats']);
+Route::get('/users/{userId}/mutual-followers', [\App\Http\Controllers\FollowController::class, 'getMutualFollowers']);
+
+
 // ==========================================
 // NOUVELLES ROUTES API PERSONNALISÉES
 // ==========================================
@@ -185,6 +210,8 @@ Route::delete('/posts-simple/{id}', [\App\Http\Controllers\Api\M_Controller::cla
 Route::put('/posts-simple/{id}', [\App\Http\Controllers\Api\M_Controller::class, 'updatePostSimple']);
 Route::get('/posts-by-tag/{tag}', [\App\Http\Controllers\Api\M_Controller::class, 'getPostsByTagSimple']);
 Route::get('/posts-by-category-sub', [\App\Http\Controllers\Api\M_Controller::class, 'getPostsByCategorySubSimple']);
+Route::get('/posts-by-category/{category_id}', [\App\Http\Controllers\Api\M_Controller::class, 'getPostsByCategorySimple']);
+Route::get('/posts-by-subcategory/{subcategory_id}', [\App\Http\Controllers\Api\M_Controller::class, 'getPostsBySubcategorySimple']);
 
 // ====================
 
@@ -196,8 +223,7 @@ Route::get('/drops-simple', [\App\Http\Controllers\Api\M_Controller::class, 'get
 Route::post('/drops-simple', [\App\Http\Controllers\Api\M_Controller::class, 'addDropSimple']);
 Route::put('/products-simple/{id}', [\App\Http\Controllers\Api\M_Controller::class, 'updateProductSimple']);
 Route::delete('/products-simple/{id}', [\App\Http\Controllers\Api\M_Controller::class, 'deleteProductSimple']);
-
-
-
+Route::post('/saved', [PersonnaliseController::class, 'savePost'])->middleware('auth:sanctum');
+Route::get('/saved', [PersonnaliseController::class, 'getSavedPosts'])->middleware('auth:sanctum'); // Récupérer les posts sauvegardés
 
 

@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
@@ -11,7 +10,7 @@ class M_Controller extends Controller
     /**
      * Exemple de méthode d'API
      */
-  
+
 
     /**
      * Obtenir tous les rôles et permissions
@@ -100,7 +99,9 @@ class M_Controller extends Controller
         $request->validate([
             'first_name' => 'required|string',
             'last_name' => 'required|string',
+
             'email' => 'required|email|unique:users,email',            'role' => 'in:user,admin',
+            'email' => 'required|email|unique:users,email',
             'role' => 'required|in:user,admin',
             'password' => 'required|string|min:6',
         ]);
@@ -111,6 +112,7 @@ class M_Controller extends Controller
             'profile_image' => $request->profile_image ?? 'default.png',
             'password' => bcrypt($request->password),
             'role' => $request->role ?? 'user', // <-- PREND LA VALEUR ENVOYÉE
+
 
             'status' => 'active',
             'profile_image' => $request->profile_image ?? 'default.png',
@@ -256,15 +258,9 @@ class M_Controller extends Controller
     // a. Get posts (id, author, fandom, date, likes, category, title, content, media)
     public function getAllPostsSimple()
     {
-        $posts = \App\Models\Post::with(['user:id,first_name', 'category:id,name', 'media'])
+        $posts = \App\Models\Post::with(['user:id,first_name', 'category:id,name'])
             ->get()
             ->map(function($post) {
-                $media = null;
-                if (is_object($post->media) && method_exists($post->media, 'count') && $post->media->count() > 0) {
-                    $media = ['url' => $post->media->first()->url];
-                } elseif (is_string($post->media) && !empty($post->media)) {
-                    $media = ['url' => $post->media];
-                }
                 return [
                     'id' => $post->id,
                     'author' => $post->user ? trim($post->user->first_name . ' ' . ($post->user->last_name ?? '')) : null,
@@ -274,7 +270,7 @@ class M_Controller extends Controller
                     'category' => $post->category->name ?? null,
                     'title' => $post->title,
                     'content' => $post->content,
-                    'media' => $media
+                    'media' => $post->media // Utilise directement le champ media JSON
                 ];
             });
         return response()->json(['success' => true, 'data' => $posts]);
@@ -291,18 +287,24 @@ class M_Controller extends Controller
             'subcategory_id' => 'nullable|integer|exists:subcategories,id',
             'media' => 'nullable|array',
         ]);
+
         $post = \App\Models\Post::create([
             'user_id' => $request->author_id,
             'title' => $request->title,
             'content' => $request->content,
             'category_id' => $request->category_id,
             'subcategory_id' => $request->subcategory_id,
+            'media' => $request->has('media') ? $request->media : null,
         ]);
-        if ($request->has('media')) {
-            foreach ($request->media as $mediaUrl) {
-                $post->media()->create(['url' => $mediaUrl]);
+
+        // Attacher les tags si fournis
+        if ($request->has('tags') && is_array($request->tags)) {
+            foreach ($request->tags as $tagName) {
+                $tag = \App\Models\Tag::firstOrCreate(['tag_name' => $tagName]);
+                $post->tags()->attach($tag->id);
             }
         }
+
         return response()->json(['success' => true, 'data' => $post], 201);
     }
 
@@ -320,7 +322,23 @@ class M_Controller extends Controller
     {
         $post = \App\Models\Post::find($id);
         if (!$post) return response()->json(['success' => false, 'error' => 'Post not found'], 404);
-        $post->update($request->only(['title', 'content', 'category_id', 'subcategory_id']));
+        
+        $updateData = $request->only(['title', 'content', 'category_id', 'subcategory_id']);
+        if ($request->has('media')) {
+            $updateData['media'] = $request->media;
+        }
+        
+        $post->update($updateData);
+        
+        // Mettre à jour les tags si fournis
+        if ($request->has('tags') && is_array($request->tags)) {
+            $post->tags()->detach(); // Supprimer tous les tags existants
+            foreach ($request->tags as $tagName) {
+                $tag = \App\Models\Tag::firstOrCreate(['tag_name' => $tagName]);
+                $post->tags()->attach($tag->id);
+            }
+        }
+        
         return response()->json(['success' => true, 'data' => $post]);
     }
 
@@ -328,8 +346,22 @@ class M_Controller extends Controller
     public function getPostsByTagSimple($tag)
     {
         $posts = \App\Models\Post::whereHas('tags', function($q) use ($tag) {
-            $q->where('name', $tag);
-        })->get();
+            $q->where('tag_name', $tag);
+        })->with(['user:id,first_name', 'category:id,name'])
+        ->get()
+        ->map(function($post) {
+            return [
+                'id' => $post->id,
+                'author' => $post->user ? trim($post->user->first_name . ' ' . ($post->user->last_name ?? '')) : null,
+                'fandom' => $post->fandom ?? 'general',
+                'date' => $post->created_at,
+                'likes' => $post->likes ?? 0,
+                'category' => $post->category->name ?? null,
+                'title' => $post->title,
+                'content' => $post->content,
+                'media' => $post->media
+            ];
+        });
         return response()->json(['success' => true, 'data' => $posts]);
     }
 
@@ -343,7 +375,65 @@ class M_Controller extends Controller
         if ($request->has('subcategory_id')) {
             $query->where('subcategory_id', $request->subcategory_id);
         }
-        $posts = $query->get();
+        $posts = $query->with(['user:id,first_name', 'category:id,name'])
+            ->get()
+            ->map(function($post) {
+                return [
+                    'id' => $post->id,
+                    'author' => $post->user ? trim($post->user->first_name . ' ' . ($post->user->last_name ?? '')) : null,
+                    'fandom' => $post->fandom ?? 'general',
+                    'date' => $post->created_at,
+                    'likes' => $post->likes ?? 0,
+                    'category' => $post->category->name ?? null,
+                    'title' => $post->title,
+                    'content' => $post->content,
+                    'media' => $post->media
+                ];
+            });
+        return response()->json(['success' => true, 'data' => $posts]);
+    }
+
+    // g. Get posts by category only
+    public function getPostsByCategorySimple($category_id)
+    {
+        $posts = \App\Models\Post::where('category_id', $category_id)
+            ->with(['user:id,first_name', 'category:id,name'])
+            ->get()
+            ->map(function($post) {
+                return [
+                    'id' => $post->id,
+                    'author' => $post->user ? trim($post->user->first_name . ' ' . ($post->user->last_name ?? '')) : null,
+                    'fandom' => $post->fandom ?? 'general',
+                    'date' => $post->created_at,
+                    'likes' => $post->likes ?? 0,
+                    'category' => $post->category->name ?? null,
+                    'title' => $post->title,
+                    'content' => $post->content,
+                    'media' => $post->media
+                ];
+            });
+        return response()->json(['success' => true, 'data' => $posts]);
+    }
+
+    // h. Get posts by subcategory only
+    public function getPostsBySubcategorySimple($subcategory_id)
+    {
+        $posts = \App\Models\Post::where('subcategory_id', $subcategory_id)
+            ->with(['user:id,first_name', 'category:id,name'])
+            ->get()
+            ->map(function($post) {
+                return [
+                    'id' => $post->id,
+                    'author' => $post->user ? trim($post->user->first_name . ' ' . ($post->user->last_name ?? '')) : null,
+                    'fandom' => $post->fandom ?? 'general',
+                    'date' => $post->created_at,
+                    'likes' => $post->likes ?? 0,
+                    'category' => $post->category->name ?? null,
+                    'title' => $post->title,
+                    'content' => $post->content,
+                    'media' => $post->media
+                ];
+            });
         return response()->json(['success' => true, 'data' => $posts]);
     }
 
@@ -366,7 +456,7 @@ class M_Controller extends Controller
                     'stock' => $product->stock,
                     'date' => $product->date,
                     'revenue' => $product->revenue ?? 0,
-                   
+
                 ];
             });
         return response()->json(['success' => true, 'data' => $products]);
