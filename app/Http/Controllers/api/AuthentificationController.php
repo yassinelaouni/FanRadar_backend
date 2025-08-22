@@ -28,6 +28,16 @@ class AuthentificationController extends Controller
                 // Créer un token avec Sanctum
                 $token = $user->createToken('auth_token')->plainTextToken;
 
+                // Ensure we return an exact role string and also full roles/permissions arrays
+                $roleNames = $user->getRoleNames();
+                $permissionNames = $user->getPermissionNames();
+
+                // Fallback: if user has no roles yet, assign default 'user'
+                if ($roleNames->isEmpty()) {
+                    $user->assignRole('user');
+                    $roleNames = $user->getRoleNames();
+                }
+
                 return response()->json([
                     'message' => 'Connexion réussie.',
                     'user' => [
@@ -36,8 +46,8 @@ class AuthentificationController extends Controller
                         'last_name' => $user->last_name,
                         'email' => $user->email,
                         'profile_image' => $user->profile_image,
-                        'role'=>$user->getRoleNames(),
-                        'permissions' => $user->getPermissionNames(),
+                        'role' => $roleNames->first() ?? null,
+                        'permissions' => $permissionNames->toArray(),
                     ],
                     'token' => $token,
                 ]);
@@ -81,6 +91,10 @@ class AuthentificationController extends Controller
                 // Création du token Sanctum
                 $token = $user->createToken('auth_token')->plainTextToken;
 
+                // Ensure we return an exact role string and also full roles/permissions arrays
+                $roleNames = $user->getRoleNames();
+                $permissionNames = $user->getPermissionNames();
+
                 return response()->json([
                     'message' => 'Inscription réussie.',
                     'user' => [
@@ -89,8 +103,8 @@ class AuthentificationController extends Controller
                         'last_name' => $user->last_name,
                         'email' => $user->email,
                         'profile_image' => $user->profile_image,
-                        'role'=>$user->getRoleNames(),
-                        'permissions' => $user->getPermissionNames(),
+                        'role' => $roleNames->first() ?? null,
+                        'permissions' => $permissionNames->toArray(),
                     ],
                     'token' => $token,
                 ], 201);

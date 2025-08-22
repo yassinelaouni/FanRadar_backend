@@ -55,6 +55,16 @@ class PersonnaliseController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        // Include exact role string and arrays
+        $roleNames = $user->getRoleNames();
+        $permissionNames = $user->getPermissionNames();
+
+        // Fallback: if user has no roles yet, assign default 'user'
+        if ($roleNames->isEmpty()) {
+            $user->assignRole('user');
+            $roleNames = $user->getRoleNames();
+        }
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -63,6 +73,8 @@ class PersonnaliseController extends Controller
                     'name' => $user->first_name . ' ' . $user->last_name,
                     'email' => $user->email,
                     'avatar' => $user->profile_image ?? 'https://ui-avatars.com/api/?name=' . urlencode($user->first_name . '+' . $user->last_name),
+                    'role' => $roleNames->first() ?? null,
+                    'permissions' => $permissionNames->toArray(),
                     'followers' => 0, // À calculer selon vos relations
                     'following' => 0, // À calculer selon vos relations
                     'posts' => 0 // À calculer selon vos relations

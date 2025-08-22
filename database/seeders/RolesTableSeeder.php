@@ -17,7 +17,7 @@ class RolesTableSeeder extends Seeder
         $roles = ['admin', 'user', 'writer'];
 
         foreach ($roles as $role) {
-            Role::firstOrCreate(['name' => $role]);
+            Role::firstOrCreate(['name' => $role, 'guard_name' => 'web']);
         }
 
     }
