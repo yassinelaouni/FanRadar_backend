@@ -134,7 +134,6 @@ Route::get('/categories/{category}/content', [PersonnaliseController::class, 'ge
 Route::get('/users/{userId}/followers', [PersonnaliseController::class, 'getUserFollowers']);
 Route::get('/users/{userId}/following', [PersonnaliseController::class, 'getUserFollowing']);
 Route::post('/users/{userId}/follow', [PersonnaliseController::class, 'followUser']);
-Route::get('/posts/saved', [PersonnaliseController::class, 'getSavedPosts']);
 Route::put('/users/avatar', [PersonnaliseController::class, 'updateAvatar']);
 Route::put('/users/cover-photo', [PersonnaliseController::class, 'updateCoverPhoto']);
 
@@ -143,6 +142,14 @@ Route::put('/users/cover-photo', [PersonnaliseController::class, 'updateCoverPho
 // ====================
 Route::post('/posts/{postId}/comments', [PersonnaliseController::class, 'addCommentToPost']);
 Route::post('/posts/{postId}/share', [PersonnaliseController::class, 'sharePost']);
+
+// ====================
+// SAVED POSTS - PROTECTED
+// ====================
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/posts/saved', [\App\Http\Controllers\Api\PersonnaliseController::class, 'getSavedPosts']);
+    Route::post('/saved', [\App\Http\Controllers\Api\PersonnaliseController::class, 'savePost']);
+});
 
 // ====================
 // HASHTAGS
@@ -223,7 +230,6 @@ Route::get('/drops-simple', [\App\Http\Controllers\Api\M_Controller::class, 'get
 Route::post('/drops-simple', [\App\Http\Controllers\Api\M_Controller::class, 'addDropSimple']);
 Route::put('/products-simple/{id}', [\App\Http\Controllers\Api\M_Controller::class, 'updateProductSimple']);
 Route::delete('/products-simple/{id}', [\App\Http\Controllers\Api\M_Controller::class, 'deleteProductSimple']);
-Route::post('/saved', [PersonnaliseController::class, 'savePost'])->middleware('auth:sanctum');
-Route::get('/saved', [PersonnaliseController::class, 'getSavedPosts'])->middleware('auth:sanctum'); // Récupérer les posts sauvegardés
+
 
 

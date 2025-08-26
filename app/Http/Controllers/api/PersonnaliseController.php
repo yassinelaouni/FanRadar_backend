@@ -454,18 +454,18 @@ public function getSavedPosts(Request $request)
         ->map(function ($post) {
             return [
                 'id' => $post->id,
-                'content' => $post->content,
+                'content' => $post->body ?? $post->title ?? '',
                 'media' => $post->media->pluck('file_path')->toArray(),
                 'author' => [
                     'id' => $post->user->id,
-                    'name' => $post->user->name,
-                    'username' => $post->user->username,
-                    'avatar' => $post->user->profile_image,
+                    'name' => $post->user->first_name . ' ' . $post->user->last_name,
+                    'username' => $post->user->email, // Utiliser email comme username temporairement
+                    'avatar' => $post->user->profile_image ?? 'https://ui-avatars.com/api/?name=' . urlencode($post->user->first_name . '+' . $post->user->last_name),
                 ],
                 'likes' => $post->likes_count ?? 0,
                 'comments' => $post->comments_count ?? 0,
                 'shares' => $post->shares_count ?? 0,
-                'savedAt' => optional($post->pivot)->created_at ? $post->pivot->created_at->toIso8601String() : null,
+                'savedAt' => optional($post->pivot)->created_at ? $post->pivot->created_at->toIso8601String() : now()->toIso8601String(),
             ];
         });
 

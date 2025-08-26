@@ -283,27 +283,33 @@ class M_Controller extends Controller
             'author_id' => 'required|integer|exists:users,id',
             'title' => 'required|string',
             'content' => 'required|string',
-            'category_id' => 'nullable|integer|exists:categories,id',
-            'subcategory_id' => 'nullable|integer|exists:subcategories,id',
-            'media' => 'nullable|array',
+            // Pas besoin de valider 'media' ici
         ]);
+
+        $mediaUrls = [];
+        // Correction : récupérer tous les fichiers envoyés sous "media" ou "media[]"
+        if ($request->hasFile('media')) {
+            $files = $request->file('media');
+            // Si $files n'est pas un tableau, le transformer en tableau
+            if (!is_array($files)) {
+                $files = [$files];
+            }
+            foreach ($files as $file) {
+                if ($file && $file->isValid()) {
+                    $path = $file->store('images', 'public');
+                    $mediaUrls[] = asset('storage/' . $path);
+                }
+            }
+        }
 
         $post = \App\Models\Post::create([
             'user_id' => $request->author_id,
             'title' => $request->title,
             'content' => $request->content,
-            'category_id' => $request->category_id,
-            'subcategory_id' => $request->subcategory_id,
-            'media' => $request->has('media') ? $request->media : null,
+            'category_id' => $request->category_id ?? null,
+            'subcategory_id' => $request->subcategory_id ?? null,
+            'media' => json_encode($mediaUrls), // Stocke les URLs en JSON
         ]);
-
-        // Attacher les tags si fournis
-        if ($request->has('tags') && is_array($request->tags)) {
-            foreach ($request->tags as $tagName) {
-                $tag = \App\Models\Tag::firstOrCreate(['tag_name' => $tagName]);
-                $post->tags()->attach($tag->id);
-            }
-        }
 
         return response()->json(['success' => true, 'data' => $post], 201);
     }
@@ -551,5 +557,27 @@ class M_Controller extends Controller
         if (!$product) return response()->json(['success' => false, 'error' => 'Product not found'], 404);
         $product->delete();
         return response()->json(['success' => true, 'message' => 'Product deleted']);
+    }
+
+    /**
+     * Upload image
+     * Route: POST /api/upload-image
+     */
+    public function uploadImage(Request $request)
+    {
+        if (!$request->hasFile('image')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No image file provided.'
+            ], 422);
+        }
+
+        $file = $request->file('image');
+        $path = $file->store('images', 'public');
+
+        return response()->json([
+            'success' => true,
+            'path' => $path
+        ]);
     }
 }
