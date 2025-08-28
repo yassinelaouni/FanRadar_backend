@@ -65,23 +65,36 @@ class PersonnaliseController extends Controller
             $roleNames = $user->getRoleNames();
         }
 
+        // Calculer l'âge si date_naissance est fournie
+        $age = null;
+        if ($user->date_naissance) {
+            try {
+                $age = \Carbon\Carbon::parse($user->date_naissance)->age;
+            } catch (\Exception $e) {
+                $age = null;
+            }
+        }
+
+        // Récupérer les catégories préférées
+        $preferredCategories = $user->preferredCategories()->pluck('category_id')->toArray();
+
         return response()->json([
-            'success' => true,
-            'data' => [
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->first_name . ' ' . $user->last_name,
-                    'email' => $user->email,
-                    'avatar' => $user->profile_image ?? 'https://ui-avatars.com/api/?name=' . urlencode($user->first_name . '+' . $user->last_name),
-                    'role' => $roleNames->first() ?? null,
-                    'permissions' => $permissionNames->toArray(),
-                    'followers' => 0, // À calculer selon vos relations
-                    'following' => 0, // À calculer selon vos relations
-                    'posts' => 0 // À calculer selon vos relations
-                ],
-                'token' => $token
-            ]
-        ]);
+            'message' => 'Connexion réussie.',
+            'user' => [
+                'id' => $user->id,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'email' => $user->email,
+                'profile_image' => $user->profile_image,
+                'date_naissance' => $user->date_naissance,
+                'gender' => $user->gender,
+                'age' => $age,
+                'preferred_categories' => $preferredCategories,
+                'role' => $roleNames->first() ?? null,
+                'permissions' => $permissionNames->toArray(),
+            ],
+            'token' => $token,
+        ], 200);
     }
 
     /**
