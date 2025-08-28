@@ -331,21 +331,33 @@ class PersonnaliseController extends Controller
      public function createPost(Request $request)
     {
     $validated = $request->validate([
-        'title' => 'required|string|max:255',
-        'body' => 'nullable|string',
-        'user_id' => 'required|exists:users,id',
-        'feedback' => 'integer',
+
         'schedule_at' => 'nullable|date',
         'description' => 'nullable|string',
         'content_status' => 'required|in:draft,published,archived',
         'medias' => 'nullable|array',
         'medias.*' => 'file|mimes:jpg,jpeg,png,mp4,mov|max:20480',
+        'tags' => 'nullable|array',
+        'tags.*' => 'string|max:255',
     ]);
 
+    $user = Auth::user();
+    $validated['user_id'] = $user->id;
+    $tags = $validated['tags'] ?? [];
+    unset($validated['tags']);
     $post = Post::create($validated);
 
-    if ($request->hasFile('medias')) {
-        foreach ($request->file('medias') as $file) {
+    // Associer les tags si fournis
+    if (!empty($tags)) {
+        foreach ($tags as $tagName) {
+            $tag = \App\Models\Tag::firstOrCreate(['tag_name' => $tagName]);
+            $post->tags()->syncWithoutDetaching($tag->id);
+        }
+    }
+
+    $mediaFiles = $request->file('medias');
+    if (is_iterable($mediaFiles)) {
+        foreach ($mediaFiles as $file) {
             $extension = strtolower($file->getClientOriginalExtension());
 
             // Détecte type média selon extension
@@ -365,16 +377,33 @@ class PersonnaliseController extends Controller
 
             $path = $file->store($folder, 'public');
 
-            $post->medias()->create([
-                'file_path' => $path,
-                'media_type' => $mediaType,
-            ]);
+            // Vérifier si le fichier est bien enregistré dans storage
+            if (Storage::disk('public')->exists($path)) {
+                $post->medias()->create([
+                    'file_path' => $path,
+                    'media_type' => $mediaType,
+                ]);
+            } else {
+                // Optionnel: log ou ajouter un message d'erreur si besoin
+                // \Log::error("Le fichier média n'a pas été enregistré: $path");
+                continue;
+            }
         }
     }
 
+    // Charger les tags pour la réponse
+    $post->load('tags');
     return response()->json([
         'message' => 'Post créé avec succès.',
-        'post' => $post->load('medias', 'user')
+        'post' => [
+            'id' => $post->id,
+            'body' => $post->body,
+            'media' => method_exists($post, 'medias') ? $post->medias->pluck('file_path')->toArray() : [],
+            'tags' => method_exists($post, 'tags') ? $post->tags->pluck('tag_name')->toArray() : [],
+            'content_status' => $post->content_status,
+            'schedule_at' => $post->schedule_at,
+            'createdAt' => $post->created_at ? $post->created_at->toISOString() : null
+        ]
     ], 201);
 }
 
@@ -396,13 +425,13 @@ class PersonnaliseController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'title' => 'sometimes|string|max:255',
-            'body' => 'nullable|string',
             'description' => 'nullable|string',
             'content_status' => 'sometimes|in:draft,published,archived',
             'schedule_at' => 'nullable|date',
             'medias' => 'nullable|array',
             'medias.*' => 'file|mimes:jpg,jpeg,png,mp4,mov|max:20480',
+            'tags' => 'nullable|array',
+            'tags.*' => 'string|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -417,7 +446,6 @@ class PersonnaliseController extends Controller
         }
 
         $updateData = [];
-        if ($request->has('title')) $updateData['title'] = $request->title;
         if ($request->has('body')) $updateData['body'] = $request->body;
         if ($request->has('description')) $updateData['description'] = $request->description;
         if ($request->has('content_status')) $updateData['content_status'] = $request->content_status;
@@ -426,8 +454,9 @@ class PersonnaliseController extends Controller
         $post->update($updateData);
 
         // Gérer l'upload de nouveaux médias (ajoute, ne supprime pas les anciens)
-        if ($request->hasFile('medias')) {
-            foreach ($request->file('medias') as $file) {
+        $mediaFiles = $request->file('medias');
+        if (is_iterable($mediaFiles)) {
+            foreach ($mediaFiles as $file) {
                 $extension = strtolower($file->getClientOriginalExtension());
                 $imageExtensions = ['jpg', 'jpeg', 'png'];
                 $videoExtensions = ['mp4', 'mov'];
@@ -441,24 +470,30 @@ class PersonnaliseController extends Controller
                     continue;
                 }
                 $path = $file->store($folder, 'public');
-                $post->medias()->create([
-                    'file_path' => $path,
-                    'media_type' => $mediaType,
-                ]);
+                // Vérifier si le fichier est bien enregistré dans storage
+                if (Storage::disk('public')->exists($path)) {
+                    $post->medias()->create([
+                        'file_path' => $path,
+                        'media_type' => $mediaType,
+                    ]);
+                } else {
+                    // Optionnel: log ou ajouter un message d'erreur si besoin
+                    // \Log::error("Le fichier média n'a pas été enregistré: $path");
+                    continue;
+                }
             }
         }
 
         // Rafraîchir les relations pour la réponse
-        $post->load('medias', 'user');
+        $post->load('medias', 'tags', 'user');
 
         return response()->json([
             'message' => 'Post mis à jour avec succès.',
             'post' => [
                 'id' => $post->id,
-                'title' => $post->title,
                 'body' => $post->body,
-                'description' => $post->description,
                 'media' => method_exists($post, 'medias') ? $post->medias->pluck('file_path')->toArray() : [],
+                'tags' => method_exists($post, 'tags') ? $post->tags->pluck('tag_name')->toArray() : [],
                 'content_status' => $post->content_status,
                 'schedule_at' => $post->schedule_at,
                 'createdAt' => $post->created_at ? $post->created_at->toISOString() : null
@@ -485,10 +520,15 @@ class PersonnaliseController extends Controller
 
         // Supprimer les fichiers médias associés
         foreach ($post->medias as $media) {
-            if (isset($media->file_path) && \Storage::disk('public')->exists($media->file_path)) {
-                \Storage::disk('public')->delete($media->file_path);
+            if (isset($media->file_path) && Storage::disk('public')->exists($media->file_path)) {
+                Storage::disk('public')->delete($media->file_path);
             }
             $media->delete();
+        }
+
+        // Détacher les tags associés dans la table taggables
+        if (method_exists($post, 'tags')) {
+            $post->tags()->detach();
         }
 
         $post->delete();
@@ -512,9 +552,7 @@ class PersonnaliseController extends Controller
         $formattedPosts = collect($posts->items())->map(function ($post) {
             return [
                 'id' => $post->id,
-                'title' => $post->title,
                 'body' => $post->body,
-                'description' => $post->description,
                 'media' => method_exists($post, 'medias') ? $post->medias->pluck('file_path')->toArray() : [],
                 'content_status' => $post->content_status,
                 'schedule_at' => $post->schedule_at,

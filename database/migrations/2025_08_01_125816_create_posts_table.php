@@ -13,8 +13,6 @@ return new class extends Migration
     {
         Schema::create('posts', function (Blueprint $table) {
             $table->id();
-            $table->string('title');
-            $table->text('body')->nullable();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->integer('feedback')->default(0);
             $table->timestamp('schedule_at')->nullable();
