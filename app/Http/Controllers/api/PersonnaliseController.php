@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Storage;
 class PersonnaliseController extends Controller
 {
     // ====================
-    // AUTHENTICATION 
+    // AUTHENTICATION
     // ====================
 
     /**
@@ -90,43 +90,76 @@ class PersonnaliseController extends Controller
      */
     public function register(Request $request)
     {
+
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
             'email' => 'required|string|email|unique:users,email',
-            'password' => 'required|string|min:6'
+            'password' => 'required|string|min:6',
+            'date_naissance' => 'nullable|date',
+            'gender' => 'nullable|in:male,female,other',
+            'preferred_categories' => 'nullable|array',
+            'preferred_categories.*' => 'integer|exists:categories,id',
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'VALIDATION_ERROR',
-                    'message' => 'Données invalides',
-                    'details' => $validator->errors()
-                ]
-            ], 422);
+            return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        // Séparer le nom complet en prénom et nom
-        $nameParts = explode(' ', $request->name, 2);
-        $firstName = $nameParts[0];
-        $lastName = isset($nameParts[1]) ? $nameParts[1] : '';
-
         $user = User::create([
-            'first_name' => $firstName,
-            'last_name' => $lastName,
+            'first_name' => $request->first_name,
+            'last_name' => $request->last_name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'profile_image' => 'default.png'
+            'profile_image' => $profileImagePath ?? 'default.png',
+            'date_naissance' => $request->date_naissance,
+            'gender' => $request->gender,
         ]);
 
+        $user->assignRole('user');
+
+        // Enregistrer les catégories préférées si fournies
+        $preferredCategories = [];
+        if ($request->has('preferred_categories')) {
+            foreach ($request->preferred_categories as $catId) {
+                $user->preferredCategories()->create(['category_id' => $catId]);
+            }
+            $preferredCategories = $user->preferredCategories()->pluck('category_id')->toArray();
+        }
+
+        // Création du token Sanctum
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        // Ensure we return an exact role string and also full roles/permissions arrays
+        $roleNames = $user->getRoleNames();
+        $permissionNames = $user->getPermissionNames();
+
+        // Calculer l'âge si date_naissance est fournie
+        $age = null;
+        if ($user->date_naissance) {
+            try {
+                $age = \Carbon\Carbon::parse($user->date_naissance)->age;
+            } catch (\Exception $e) {
+                $age = null;
+            }
+        }
+
         return response()->json([
-            'success' => true,
-            'message' => 'Please verify your email',
-            'data' => [
+            'message' => 'Inscription réussie.',
+            'user' => [
+                'id' => $user->id,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
                 'email' => $user->email,
-                'verificationRequired' => true
-            ]
+                'profile_image' => $user->profile_image,
+                'date_naissance' => $user->date_naissance,
+                'gender' => $user->gender,
+                'age' => $age,
+                'preferred_categories' => $preferredCategories,
+                'role' => $roleNames->first() ?? null,
+                'permissions' => $permissionNames->toArray(),
+            ],
+            'token' => $token,
         ], 201);
     }
 

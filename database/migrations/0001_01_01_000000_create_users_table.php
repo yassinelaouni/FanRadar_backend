@@ -20,6 +20,8 @@ return new class extends Migration
             $table->enum('role', ['user', 'admin'])->default('user');
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+             $table->date('date_naissance')->nullable();
+            $table->enum('gender', ['male', 'female', 'other'])->nullable();
             $table->rememberToken();
             $table->timestamps();
         });

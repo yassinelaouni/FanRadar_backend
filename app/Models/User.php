@@ -61,7 +61,7 @@ class User extends Authenticatable
     public function savedPosts()
     {
         return $this->belongsToMany(Post::class, 'saved_posts')->withTimestamps();
-    } 
+    }
 
     // Relation avec les favoris
     public function favorites()
@@ -136,5 +136,10 @@ class User extends Authenticatable
     public function followersCount()
     {
         return $this->followers()->count();
+    }
+
+    public function preferredCategories()
+    {
+        return $this->hasMany(UserPreferredCategory::class);
     }
 }

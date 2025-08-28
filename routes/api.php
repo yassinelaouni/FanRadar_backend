@@ -98,8 +98,8 @@ Route::get('/users/{userId}/mutual-followers', [\App\Http\Controllers\FollowCont
 // ====================
 // AUTHENTICATION PERSONNALISÉ
 // ====================
-Route::post('/auth/login', [PersonnaliseController::class, 'login']);
-Route::post('/auth/register', [PersonnaliseController::class, 'register']);
+Route::post('Y/auth/login', [PersonnaliseController::class, 'login']);
+Route::post('/Y/auth/register', [PersonnaliseController::class, 'register']);
 
 // ====================
 // USER PROFILE

@@ -13,4 +13,9 @@ class Category extends Model
     {
         return $this->hasMany(Subcategory::class);
     }
+    
+    public function userPreferredCategories()
+    {
+        return $this->hasMany(UserPreferredCategory::class);
+    }
 }
