@@ -65,15 +65,7 @@ class PersonnaliseController extends Controller
             $roleNames = $user->getRoleNames();
         }
 
-        // Calculer l'âge si date_naissance est fournie
-        $age = null;
-        if ($user->date_naissance) {
-            try {
-                $age = \Carbon\Carbon::parse($user->date_naissance)->age;
-            } catch (\Exception $e) {
-                $age = null;
-            }
-        }
+
 
         // Récupérer les catégories préférées
         $preferredCategories = $user->preferredCategories()->pluck('category_id')->toArray();
@@ -86,9 +78,10 @@ class PersonnaliseController extends Controller
                 'last_name' => $user->last_name,
                 'email' => $user->email,
                 'profile_image' => $user->profile_image,
+                'background_image' => $user->background_image,
                 'date_naissance' => $user->date_naissance,
                 'gender' => $user->gender,
-                'age' => $age,
+                // 'age' supprimé
                 'preferred_categories' => $preferredCategories,
                 'role' => $roleNames->first() ?? null,
                 'permissions' => $permissionNames->toArray(),
@@ -125,6 +118,7 @@ class PersonnaliseController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'profile_image' => $profileImagePath ?? 'default.png',
+            'background_image' => 'default_background.png',
             'date_naissance' => $request->date_naissance,
             'gender' => $request->gender,
         ]);
@@ -147,15 +141,7 @@ class PersonnaliseController extends Controller
         $roleNames = $user->getRoleNames();
         $permissionNames = $user->getPermissionNames();
 
-        // Calculer l'âge si date_naissance est fournie
-        $age = null;
-        if ($user->date_naissance) {
-            try {
-                $age = \Carbon\Carbon::parse($user->date_naissance)->age;
-            } catch (\Exception $e) {
-                $age = null;
-            }
-        }
+        // (Suppression du calcul de l'âge)
 
         return response()->json([
             'message' => 'Inscription réussie.',
@@ -165,9 +151,9 @@ class PersonnaliseController extends Controller
                 'last_name' => $user->last_name,
                 'email' => $user->email,
                 'profile_image' => $user->profile_image,
+                'background_image' => $user->background_image,
                 'date_naissance' => $user->date_naissance,
                 'gender' => $user->gender,
-                'age' => $age,
                 'preferred_categories' => $preferredCategories,
                 'role' => $roleNames->first() ?? null,
                 'permissions' => $permissionNames->toArray(),
