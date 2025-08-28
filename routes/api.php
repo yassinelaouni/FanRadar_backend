@@ -110,17 +110,20 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 Route::get('Y/users/{userId}/posts', [PersonnaliseController::class, 'getUserPosts']);
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('Y/posts/create', [PersonnaliseController::class, 'createPost']);
+    Route::post('Y/posts/{postId}/update', [PersonnaliseController::class, 'updatePost']);
+    Route::delete('Y/posts/{postId}/delete', [PersonnaliseController::class, 'deletePost']);
 
+    Route::post('Y/posts/{postId}/like', [PersonnaliseController::class, 'likePost']);
+});
 // ====================
 // MAIN CONTENT / FEED
 // ====================
 Route::get('/feed/home', [PersonnaliseController::class, 'getHomeFeed']);
 Route::get('/feed/explore', [PersonnaliseController::class, 'getExploreFeed']);
 
-Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/posts/create', [PersonnaliseController::class, 'createPost']);
-    Route::post('/posts/{postId}/like', [PersonnaliseController::class, 'likePost']);
-});
+
 
 // ====================
 // CATEGORIES PERSONNALISÉES

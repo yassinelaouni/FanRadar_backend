@@ -1,7 +1,5 @@
 <?php
-
 namespace App\Http\Controllers\Api;
-
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Post;
@@ -329,20 +327,205 @@ class PersonnaliseController extends Controller
      * Obtenir les posts d'un utilisateur
      * Route: GET /api/users/{userId}/posts
      */
+
+     public function createPost(Request $request)
+    {
+    $validated = $request->validate([
+        'title' => 'required|string|max:255',
+        'body' => 'nullable|string',
+        'user_id' => 'required|exists:users,id',
+        'feedback' => 'integer',
+        'schedule_at' => 'nullable|date',
+        'description' => 'nullable|string',
+        'content_status' => 'required|in:draft,published,archived',
+        'medias' => 'nullable|array',
+        'medias.*' => 'file|mimes:jpg,jpeg,png,mp4,mov|max:20480',
+    ]);
+
+    $post = Post::create($validated);
+
+    if ($request->hasFile('medias')) {
+        foreach ($request->file('medias') as $file) {
+            $extension = strtolower($file->getClientOriginalExtension());
+
+            // Détecte type média selon extension
+            $imageExtensions = ['jpg', 'jpeg', 'png'];
+            $videoExtensions = ['mp4', 'mov'];
+
+            if (in_array($extension, $imageExtensions)) {
+                $mediaType = 'image';
+                $folder = 'posts/images';
+            } elseif (in_array($extension, $videoExtensions)) {
+                $mediaType = 'video';
+                $folder = 'posts/videos';
+            } else {
+                // Extension non supportée (ne devrait pas arriver à cause de la validation)
+                continue;
+            }
+
+            $path = $file->store($folder, 'public');
+
+            $post->medias()->create([
+                'file_path' => $path,
+                'media_type' => $mediaType,
+            ]);
+        }
+    }
+
+    return response()->json([
+        'message' => 'Post créé avec succès.',
+        'post' => $post->load('medias', 'user')
+    ], 201);
+}
+
+    /**
+     * Mettre à jour un post existant
+     * Route: PUT /api/posts/{postId}
+     */
+    public function updatePost($postId, Request $request)
+    {
+        $post = Post::find($postId);
+        if (!$post) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'NOT_FOUND',
+                    'message' => 'Post non trouvé'
+                ]
+            ], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'title' => 'sometimes|string|max:255',
+            'body' => 'nullable|string',
+            'description' => 'nullable|string',
+            'content_status' => 'sometimes|in:draft,published,archived',
+            'schedule_at' => 'nullable|date',
+            'medias' => 'nullable|array',
+            'medias.*' => 'file|mimes:jpg,jpeg,png,mp4,mov|max:20480',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'VALIDATION_ERROR',
+                    'message' => 'Données invalides',
+                    'details' => $validator->errors()
+                ]
+            ], 422);
+        }
+
+        $updateData = [];
+        if ($request->has('title')) $updateData['title'] = $request->title;
+        if ($request->has('body')) $updateData['body'] = $request->body;
+        if ($request->has('description')) $updateData['description'] = $request->description;
+        if ($request->has('content_status')) $updateData['content_status'] = $request->content_status;
+        if ($request->has('schedule_at')) $updateData['schedule_at'] = $request->schedule_at;
+
+        $post->update($updateData);
+
+        // Gérer l'upload de nouveaux médias (ajoute, ne supprime pas les anciens)
+        if ($request->hasFile('medias')) {
+            foreach ($request->file('medias') as $file) {
+                $extension = strtolower($file->getClientOriginalExtension());
+                $imageExtensions = ['jpg', 'jpeg', 'png'];
+                $videoExtensions = ['mp4', 'mov'];
+                if (in_array($extension, $imageExtensions)) {
+                    $mediaType = 'image';
+                    $folder = 'posts/images';
+                } elseif (in_array($extension, $videoExtensions)) {
+                    $mediaType = 'video';
+                    $folder = 'posts/videos';
+                } else {
+                    continue;
+                }
+                $path = $file->store($folder, 'public');
+                $post->medias()->create([
+                    'file_path' => $path,
+                    'media_type' => $mediaType,
+                ]);
+            }
+        }
+
+        // Rafraîchir les relations pour la réponse
+        $post->load('medias', 'user');
+
+        return response()->json([
+            'message' => 'Post mis à jour avec succès.',
+            'post' => [
+                'id' => $post->id,
+                'title' => $post->title,
+                'body' => $post->body,
+                'description' => $post->description,
+                'media' => method_exists($post, 'medias') ? $post->medias->pluck('file_path')->toArray() : [],
+                'content_status' => $post->content_status,
+                'schedule_at' => $post->schedule_at,
+                'createdAt' => $post->created_at ? $post->created_at->toISOString() : null
+            ]
+        ], 200);
+    }
+
+      /**
+     * Supprimer un post existant
+     * Route: DELETE /api/posts/{postId}
+     */
+    public function deletePost($postId, Request $request)
+    {
+        $post = Post::with('medias')->find($postId);
+        if (!$post) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'NOT_FOUND',
+                    'message' => 'Post non trouvé'
+                ]
+            ], 404);
+        }
+
+        // Supprimer les fichiers médias associés
+        foreach ($post->medias as $media) {
+            if (isset($media->file_path) && \Storage::disk('public')->exists($media->file_path)) {
+                \Storage::disk('public')->delete($media->file_path);
+            }
+            $media->delete();
+        }
+
+        $post->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Post supprimé avec succès.'
+        ], 200);
+    }
+
     public function getUserPosts($userId, Request $request)
     {
         $page = $request->get('page', 1);
         $limit = $request->get('limit', 10);
 
         $posts = Post::where('user_id', $userId)
-            ->with('user')
+            ->with('medias')
             ->latest()
             ->paginate($limit, ['*'], 'page', $page);
+
+        $formattedPosts = collect($posts->items())->map(function ($post) {
+            return [
+                'id' => $post->id,
+                'title' => $post->title,
+                'body' => $post->body,
+                'description' => $post->description,
+                'media' => method_exists($post, 'medias') ? $post->medias->pluck('file_path')->toArray() : [],
+                'content_status' => $post->content_status,
+                'schedule_at' => $post->schedule_at,
+                'createdAt' => $post->created_at->toISOString()
+            ];
+        });
 
         return response()->json([
             'success' => true,
             'data' => [
-                'posts' => $posts->items(),
+                'posts' => $formattedPosts,
                 'pagination' => [
                     'page' => $posts->currentPage(),
                     'limit' => $posts->perPage(),
@@ -407,57 +590,7 @@ class PersonnaliseController extends Controller
      * Créer un nouveau post
      * Route: POST /api/posts
      */
-    public function createPost(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'content' => 'required|string|max:1000',
-            'media' => 'sometimes|array',
-            'tags' => 'sometimes|array'
-        ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'VALIDATION_ERROR',
-                    'message' => 'Contenu requis',
-                    'details' => $validator->errors()
-                ]
-            ], 422);
-        }
-
-        $user = Auth::user();
-
-        $post = Post::create([
-            'user_id' => $user->id,
-            'title' => substr($request->content, 0, 100),
-            'content' => $request->content,
-            'image' => $request->media[0] ?? null,
-            'content_status' => 'published'
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'post' => [
-                    'id' => $post->id,
-                    'content' => $post->content,
-                    'media' => $post->image ? [$post->image] : [],
-                    'author' => [
-                        'id' => $user->id,
-                        'name' => $user->first_name . ' ' . $user->last_name,
-                        'username' => strtolower($user->first_name . $user->last_name),
-                        'avatar' => $user->profile_image
-                    ],
-                    'tags' => $request->tags ?? [],
-                    'likes' => 0,
-                    'comments' => 0,
-                    'shares' => 0,
-                    'createdAt' => $post->created_at->toISOString()
-                ]
-            ]
-        ], 201);
-    }
 
     /**
      * Liker un post
