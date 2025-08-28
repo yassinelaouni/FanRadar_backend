@@ -11,6 +11,7 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
+
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasApiTokens, HasRoles;
 
@@ -51,6 +52,24 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    // Relation avec les posts créés par l'utilisateur
+    public function posts()
+    {
+        return $this->hasMany(\App\Models\Post::class, 'user_id');
+    }
+
+    // Retourne les noms des rôles de l'utilisateur (Spatie)
+    public function getRoleNames()
+    {
+        return $this->roles()->pluck('name');
+    }
+
+    // Retourne les permissions de l'utilisateur (Spatie)
+    public function getPermissionNames()
+    {
+        return $this->getAllPermissions()->pluck('name');
     }
 
     // Relation avec Orders

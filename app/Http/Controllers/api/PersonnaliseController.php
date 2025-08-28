@@ -188,21 +188,37 @@ class PersonnaliseController extends Controller
     {
         $user = Auth::user();
 
+        // Récupérer les catégories préférées
+        $preferredCategories = $user->preferredCategories()->pluck('category_id')->toArray();
+
+        // Calcul dynamique des stats (followers, following, posts)
+        $followersCount = method_exists($user, 'followers') ? $user->followers()->count() : 0;
+        $followingCount = method_exists($user, 'following') ? $user->following()->count() : 0;
+        $postsCount = method_exists($user, 'posts') ? $user->posts()->count() : (\App\Models\Post::where('user_id', $user->id)->count());
+
+        // Rôles et permissions
+        $roleNames = $user->getRoleNames();
+        $permissionNames = $user->getPermissionNames();
+
         return response()->json([
             'success' => true,
-            'data' => [
+            'user' => [
                 'id' => $user->id,
-                'name' => $user->first_name . ' ' . $user->last_name,
-                'username' => strtolower($user->first_name . $user->last_name),
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
                 'email' => $user->email,
-                'avatar' => $user->profile_image ?? 'https://ui-avatars.com/api/?name=' . urlencode($user->first_name . '+' . $user->last_name),
-                'coverPhoto' => null,
-                'bio' => null,
-                'followers' => 0,
-                'following' => 0,
-                'posts' => 0,
-                'joinedDate' => $user->created_at->toISOString(),
-                'isVerified' => false
+                'profile_image' => $user->profile_image,
+                'background_image' => $user->background_image,
+                'date_naissance' => $user->date_naissance,
+                'gender' => $user->gender,
+                'preferred_categories' => $preferredCategories,
+                'role' => $roleNames->first() ?? null,
+                'permissions' => $permissionNames->toArray(),
+                'stats' => [
+                    'followers' => $followersCount,
+                    'following' => $followingCount,
+                    'posts' => $postsCount
+                ],
             ]
         ]);
     }
@@ -216,10 +232,14 @@ class PersonnaliseController extends Controller
         $user = Auth::user();
 
         $validator = Validator::make($request->all(), [
-            'name' => 'sometimes|string|max:255',
-            'bio' => 'sometimes|string|max:500',
-            'email' => 'sometimes|email|unique:users,email,' . $user->id,
-            'categories' => 'sometimes|array'
+            'first_name' => 'sometimes|string|max:255',
+            'last_name' => 'sometimes|string|max:255',
+            'date_naissance' => 'sometimes|date',
+            'gender' => 'sometimes|in:male,female,other',
+            'profile_image' => 'sometimes|file|image|mimes:jpeg,png,jpg,gif,webp|max:4096',
+            'background_image' => 'sometimes|file|image|mimes:jpeg,png,jpg,gif,webp|max:4096',
+            'preferred_categories' => 'sometimes|array',
+            'preferred_categories.*' => 'integer|exists:categories,id',
         ]);
 
         if ($validator->fails()) {
@@ -233,24 +253,74 @@ class PersonnaliseController extends Controller
             ], 422);
         }
 
-        $user->update([
-            'first_name' => $request->has('name') ? explode(' ', $request->name, 2)[0] : $user->first_name,
-            'last_name' => $request->has('name') ? (explode(' ', $request->name, 2)[1] ?? '') : $user->last_name,
-            'email' => $request->email ?? $user->email
-        ]);
+        $updateData = [];
+        if ($request->has('first_name')) $updateData['first_name'] = $request->first_name;
+        if ($request->has('last_name')) $updateData['last_name'] = $request->last_name;
+        if ($request->has('date_naissance')) $updateData['date_naissance'] = $request->date_naissance;
+        if ($request->has('gender')) $updateData['gender'] = $request->gender;
+
+
+        // Gérer l'upload de la photo de profil
+        if ($request->hasFile('profile_image')) {
+            $file = $request->file('profile_image');
+            if ($file->isValid()) {
+                $path = $file->store('profile', 'public');
+                $updateData['profile_image'] = 'storage/' . $path;
+            }
+        }
+
+        // Gérer l'upload de la photo de couverture
+        if ($request->hasFile('background_image')) {
+            $file = $request->file('background_image');
+            if ($file->isValid()) {
+                $path = $file->store('backgroundprofile', 'public');
+                $updateData['background_image'] = 'storage/' . $path;
+            }
+        }
+
+        $user->update($updateData);
+
+        // Mettre à jour les catégories préférées si fournies
+        if ($request->has('preferred_categories')) {
+            if (method_exists($user, 'preferredCategories')) {
+                $user->preferredCategories()->delete();
+                foreach ($request->preferred_categories as $catId) {
+                    $user->preferredCategories()->create(['category_id' => $catId]);
+                }
+            }
+        }
+
+        // Récupérer les catégories préférées
+        $preferredCategories = method_exists($user, 'preferredCategories') ? $user->preferredCategories()->pluck('category_id')->toArray() : [];
+
+        // Calcul dynamique des stats (followers, following, posts)
+        $followersCount = method_exists($user, 'followers') ? $user->followers()->count() : 0;
+        $followingCount = method_exists($user, 'following') ? $user->following()->count() : 0;
+        $postsCount = method_exists($user, 'posts') ? $user->posts()->count() : (\App\Models\Post::where('user_id', $user->id)->count());
+
+        // Rôles et permissions
+        $roleNames = method_exists($user, 'getRoleNames') ? $user->getRoleNames() : collect();
+        $permissionNames = method_exists($user, 'getPermissionNames') ? $user->getPermissionNames() : collect();
 
         return response()->json([
             'success' => true,
-            'data' => [
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->first_name . ' ' . $user->last_name,
-                    'username' => strtolower($user->first_name . $user->last_name),
-                    'email' => $user->email,
-                    'bio' => $request->bio ?? null,
-                    'avatar' => $user->profile_image,
-                    'updatedAt' => $user->updated_at->toISOString()
-                ]
+            'user' => [
+                'id' => $user->id,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'email' => $user->email,
+                'profile_image' => $user->profile_image,
+                'background_image' => $user->background_image,
+                'date_naissance' => $user->date_naissance,
+                'gender' => $user->gender,
+                'preferred_categories' => $preferredCategories,
+                'role' => $roleNames->first() ?? null,
+                'permissions' => $permissionNames->toArray(),
+                'stats' => [
+                    'followers' => $followersCount,
+                    'following' => $followingCount,
+                    'posts' => $postsCount
+                ],
             ]
         ]);
     }

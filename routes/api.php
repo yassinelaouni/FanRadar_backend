@@ -105,11 +105,11 @@ Route::post('/Y/auth/register', [PersonnaliseController::class, 'register']);
 // USER PROFILE
 // ====================
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/users/profile', [PersonnaliseController::class, 'getUserProfile']);
-    Route::put('/users/profile', [PersonnaliseController::class, 'updateUserProfile']);
+    Route::get('Y/users/profile', [PersonnaliseController::class, 'getUserProfile']);
+    Route::post('Y/users/profile', [PersonnaliseController::class, 'updateUserProfile']);
 });
 
-Route::get('/users/{userId}/posts', [PersonnaliseController::class, 'getUserPosts']);
+Route::get('Y/users/{userId}/posts', [PersonnaliseController::class, 'getUserPosts']);
 
 // ====================
 // MAIN CONTENT / FEED
