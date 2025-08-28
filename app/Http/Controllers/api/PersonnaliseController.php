@@ -70,6 +70,11 @@ class PersonnaliseController extends Controller
         // Récupérer les catégories préférées
         $preferredCategories = $user->preferredCategories()->pluck('category_id')->toArray();
 
+        // Calcul dynamique des stats (followers, following, posts)
+        $followersCount = method_exists($user, 'followers') ? $user->followers()->count() : 0;
+        $followingCount = method_exists($user, 'following') ? $user->following()->count() : 0;
+        $postsCount = method_exists($user, 'posts') ? $user->posts()->count() : (\App\Models\Post::where('user_id', $user->id)->count());
+
         return response()->json([
             'message' => 'Connexion réussie.',
             'user' => [
@@ -81,10 +86,14 @@ class PersonnaliseController extends Controller
                 'background_image' => $user->background_image,
                 'date_naissance' => $user->date_naissance,
                 'gender' => $user->gender,
-                // 'age' supprimé
                 'preferred_categories' => $preferredCategories,
                 'role' => $roleNames->first() ?? null,
                 'permissions' => $permissionNames->toArray(),
+                'stats' => [
+                    'followers' => $followersCount,
+                    'following' => $followingCount,
+                    'posts' => $postsCount
+                ],
             ],
             'token' => $token,
         ], 200);
@@ -157,6 +166,11 @@ class PersonnaliseController extends Controller
                 'preferred_categories' => $preferredCategories,
                 'role' => $roleNames->first() ?? null,
                 'permissions' => $permissionNames->toArray(),
+                'stats' => [
+                    'followers' => 0,
+                    'following' => 0,
+                    'posts' => 0
+                ],
             ],
             'token' => $token,
         ], 201);
