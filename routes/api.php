@@ -115,8 +115,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('Y/posts/{postId}/update', [PersonnaliseController::class, 'updatePost']);
     Route::delete('Y/posts/{postId}/delete', [PersonnaliseController::class, 'deletePost']);
 
+
+    Route::post('Y/users/{userId}/follow', [PersonnaliseController::class, 'followUser']);
+
+
     Route::post('Y/posts/{postId}/like', [PersonnaliseController::class, 'likePost']);
 });
+Route::get('Y/users/{userId}/followers', [PersonnaliseController::class, 'getUserFollowers']);
+Route::get('Y/users/{userId}/following', [PersonnaliseController::class, 'getUserFollowing']);
+
+
+
 // ====================
 // MAIN CONTENT / FEED
 // ====================
@@ -134,9 +143,6 @@ Route::get('/categories/{category}/content', [PersonnaliseController::class, 'ge
 // ====================
 // SOCIAL / USER RELATIONS
 // ====================
-Route::get('/users/{userId}/followers', [PersonnaliseController::class, 'getUserFollowers']);
-Route::get('/users/{userId}/following', [PersonnaliseController::class, 'getUserFollowing']);
-Route::post('/users/{userId}/follow', [PersonnaliseController::class, 'followUser']);
 Route::put('/users/avatar', [PersonnaliseController::class, 'updateAvatar']);
 Route::put('/users/cover-photo', [PersonnaliseController::class, 'updateCoverPhoto']);
 

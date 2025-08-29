@@ -544,19 +544,22 @@ class PersonnaliseController extends Controller
         $page = $request->get('page', 1);
         $limit = $request->get('limit', 10);
 
+
         $posts = Post::where('user_id', $userId)
-            ->with('medias')
+            ->with(['medias', 'tags'])
             ->latest()
             ->paginate($limit, ['*'], 'page', $page);
 
         $formattedPosts = collect($posts->items())->map(function ($post) {
             return [
-                'id' => $post->id,
-                'body' => $post->body,
-                'media' => method_exists($post, 'medias') ? $post->medias->pluck('file_path')->toArray() : [],
+                'description' => $post->description,
                 'content_status' => $post->content_status,
                 'schedule_at' => $post->schedule_at,
-                'createdAt' => $post->created_at->toISOString()
+                'category_id' => $post->category_id ?? null,
+                'created_at' => $post->created_at,
+                'updated_at' => $post->updated_at,
+                'media' => method_exists($post, 'medias') ? $post->medias->pluck('file_path')->toArray() : [],
+                'tags' => method_exists($post, 'tags') ? $post->tags->pluck('tag_name')->toArray() : [],
             ];
         });
 
@@ -570,6 +573,36 @@ class PersonnaliseController extends Controller
                     'total' => $posts->total(),
                     'pages' => $posts->lastPage()
                 ]
+            ]
+        ]);
+    }
+
+     public function getUserFollowers($userId) {
+        $user = User::find($userId);
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'NOT_FOUND',
+                    'message' => 'Utilisateur non trouvé'
+                ]
+            ], 404);
+        }
+
+        // On suppose que la relation 'followers' existe sur le modèle User
+        $followers = method_exists($user, 'followers') ? $user->followers()->get() : collect();
+
+        $formattedFollowers = $followers->map(function ($follower) {
+            $arr = $follower->toArray();
+            unset($arr['pivot']);
+            return $arr;
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'followers' => $formattedFollowers,
+                'total' => $formattedFollowers->count()
             ]
         ]);
     }
@@ -703,34 +736,91 @@ class PersonnaliseController extends Controller
     // ====================
     // SOCIAL / USER RELATIONS
     // ====================
-    public function getUserFollowers($userId) {
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'followers' => [],
-                'total' => 0
-            ]
-        ]);
-    }
+
     public function getUserFollowing($userId) {
+        $user = User::find($userId);
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'NOT_FOUND',
+                    'message' => 'Utilisateur non trouvé'
+                ]
+            ], 404);
+        }
+
+        // On suppose que la relation 'following' existe sur le modèle User
+        $following = method_exists($user, 'following') ? $user->following()->get() : collect();
+
+        $formattedFollowing = $following->map(function ($followed) {
+            $arr = $followed->toArray();
+            unset($arr['pivot']);
+            return $arr;
+        });
+
         return response()->json([
             'success' => true,
             'data' => [
-                'following' => [],
-                'total' => 0
+                'following' => $formattedFollowing,
+                'total' => $formattedFollowing->count()
             ]
         ]);
     }
+
     public function followUser($userId) {
+        $authUser = Auth::user();
+        if (!$authUser) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 401);
+        }
+
+        $followerId = $authUser->id;
+
+        // Vérifier que l'utilisateur à suivre existe
+        $userToFollow = User::find($userId);
+        if (!$userToFollow) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found'
+            ], 404);
+        }
+
+        // Empêcher qu'un utilisateur se suive lui-même
+        if ($followerId == $userId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You cannot follow yourself'
+            ], 400);
+        }
+
+        // Vérifier si la relation existe déjà
+        $existingFollow = \App\Models\Follow::where([
+            'follower_id' => $followerId,
+            'following_id' => $userId,
+        ])->first();
+
+        if ($existingFollow) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Already following this user'
+            ], 409);
+        }
+
+        // Créer la relation de follow
+        \App\Models\Follow::create([
+            'follower_id' => $followerId,
+            'following_id' => $userId,
+        ]);
+
         return response()->json([
             'success' => true,
-            'message' => 'User followed successfully',
-            'data' => [
-                'isFollowing' => true,
-                'followersCount' => 1
-            ]
-        ]);
+            'message' => 'User followed successfully'
+        ], 201);
     }
+
+
 public function getSavedPosts(Request $request)
 {
     $user = $request->user();
