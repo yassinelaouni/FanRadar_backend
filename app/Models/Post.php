@@ -52,6 +52,10 @@ class Post extends Model
     {
         return $this->morphMany(Favorite::class, 'favoriteable');
     }
+     public function comments()
+    {
+        return $this->hasMany(\App\Models\Comment::class);
+    }
 
     // Utilisateurs qui ont mis ce post en favori
     public function favoritedBy()

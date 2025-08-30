@@ -115,30 +115,36 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('Y/posts/{postId}/update', [PersonnaliseController::class, 'updatePost']);
     Route::delete('Y/posts/{postId}/delete', [PersonnaliseController::class, 'deletePost']);
 
-
     Route::post('Y/users/{userId}/follow', [PersonnaliseController::class, 'followUser']);
 
+    Route::post('Y/posts/{postId}/favorite', [PersonnaliseController::class, 'addfavoritePost']);
 
-    Route::post('Y/posts/{postId}/like', [PersonnaliseController::class, 'likePost']);
+    Route::post('Y/posts/{postId}/comments', [PersonnaliseController::class, 'addCommentToPost']);
+
 });
+
 Route::get('Y/users/{userId}/followers', [PersonnaliseController::class, 'getUserFollowers']);
 Route::get('Y/users/{userId}/following', [PersonnaliseController::class, 'getUserFollowing']);
+
+Route::get('Y/feed/home', [PersonnaliseController::class, 'getHomeFeed']);
+Route::get('Y/feed/explore', [PersonnaliseController::class, 'getExploreFeed']);
+
+Route::get('Y/categories/list', [PersonnaliseController::class, 'getCategories']);
+Route::get('/categories/{category}/content', [PersonnaliseController::class, 'getCategoryContent']);
+
 
 
 
 // ====================
 // MAIN CONTENT / FEED
 // ====================
-Route::get('/feed/home', [PersonnaliseController::class, 'getHomeFeed']);
-Route::get('/feed/explore', [PersonnaliseController::class, 'getExploreFeed']);
+
 
 
 
 // ====================
 // CATEGORIES PERSONNALISÉES
 // ====================
-Route::get('/categories/list', [PersonnaliseController::class, 'getCategories']);
-Route::get('/categories/{category}/content', [PersonnaliseController::class, 'getCategoryContent']);
 
 // ====================
 // SOCIAL / USER RELATIONS
@@ -149,7 +155,6 @@ Route::put('/users/cover-photo', [PersonnaliseController::class, 'updateCoverPho
 // ====================
 // POSTS
 // ====================
-Route::post('/posts/{postId}/comments', [PersonnaliseController::class, 'addCommentToPost']);
 Route::post('/posts/{postId}/share', [PersonnaliseController::class, 'sharePost']);
 
 // ====================

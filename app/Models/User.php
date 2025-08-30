@@ -78,6 +78,10 @@ class User extends Authenticatable
         return $this->hasMany(Order::class);
     }
 
+    public function comments()
+    {
+        return $this->hasMany(\App\Models\Comment::class);
+    }
 
     // Relation avec les posts sauvegardés
     public function savedPosts()

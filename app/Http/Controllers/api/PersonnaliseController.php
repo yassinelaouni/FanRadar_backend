@@ -4,6 +4,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Post;
 use App\Models\Category;
+use App\Models\Favorite;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -620,27 +621,26 @@ class PersonnaliseController extends Controller
         $page = $request->get('page', 1);
         $limit = $request->get('limit', 20);
 
-        $posts = Post::with('user')
-            ->latest()
+        $posts = Post::with(['user', 'medias'])
+            ->orderBy('created_at', 'desc')
             ->paginate($limit, ['*'], 'page', $page);
 
         $formattedPosts = $posts->map(function ($post) {
+            $user = $post->user;
+            // La relation favorites() sur le post ne contient que les favoris de ce post
+            $likeCount = method_exists($post, 'favorites')
+                ? $post->favorites()->count()
+                : 0;
+            $commentCount = method_exists($post, 'comments') ? $post->comments()->count() : 0;
+            $media = method_exists($post, 'medias') ? $post->medias->pluck('file_path')->toArray() : [];
             return [
                 'id' => $post->id,
-                'content' => $post->content,
-                'media' => $post->image ? [$post->image] : [],
-                'author' => [
-                    'id' => $post->user->id,
-                    'name' => $post->user->first_name . ' ' . $post->user->last_name,
-                    'username' => strtolower($post->user->first_name . $post->user->last_name),
-                    'avatar' => $post->user->profile_image
-                ],
-                'tags' => [],
-                'likes' => 0,
-                'comments' => 0,
-                'shares' => 0,
-                'isLiked' => false,
-                'createdAt' => $post->created_at->toISOString()
+                'content' => $post->content ?? $post->body ?? '',
+                'media' => $media,
+                'user' => $user ? $user->toArray() : null,
+                'likes_count' => $likeCount,
+                'comments_count' => $commentCount,
+                'created_at' => $post->created_at ? $post->created_at->toISOString() : null
             ];
         });
 
@@ -657,81 +657,62 @@ class PersonnaliseController extends Controller
         ]);
     }
 
-    /**
-     * Créer un nouveau post
-     * Route: POST /api/posts
-     */
+    public function getExploreFeed(Request $request)
+     {
+        //not implemented yet
+     }
 
 
-    /**
-     * Liker un post
-     * Route: POST /api/posts/{postId}/like
-     */
-    public function likePost($postId)
+    public function addfavoritePost($postId)
     {
-        $post = Post::find($postId);
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 401);
+        }
 
+        $post = Post::find($postId);
         if (!$post) {
             return response()->json([
                 'success' => false,
-                'error' => [
-                    'code' => 'NOT_FOUND',
-                    'message' => 'Post non trouvé'
-                ]
+                'message' => 'Post not found'
             ], 404);
         }
 
-        // Logique de like à implémenter avec une table pivot
+        // Vérifier si déjà en favori
+        $existingFavorite = Favorite::where([
+            'user_id' => $user->id,
+            'favoriteable_id' => $post->id,
+            'favoriteable_type' => 'App\\Models\\Post',
+        ])->first();
+
+        if ($existingFavorite) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ce post est déjà dans vos favoris.'
+            ], 409);
+        }
+
+        // Créer le favori
+        Favorite::create([
+            'user_id' => $user->id,
+            'favoriteable_id' => $post->id,
+            'favoriteable_type' => 'App\\Models\\Post',
+        ]);
 
         return response()->json([
             'success' => true,
-            'data' => [
-                'liked' => true,
-                'likesCount' => 1, // À calculer selon vos relations
-                'message' => 'Post liké avec succès'
-            ]
-        ]);
+            'message' => 'Le post a été ajouté aux favoris avec succès.'
+        ], 201);
     }
 
     /**
      * Obtenir le feed d'exploration
      * Route: GET /api/feed/explore
      */
-    public function getExploreFeed(Request $request)
-    {
-        $posts = Post::with('user')
-            ->orderBy('created_at', 'desc')
-            ->limit(20)
-            ->get();
 
-        $formattedPosts = $posts->map(function ($post) {
-            return [
-                'id' => $post->id,
-                'content' => $post->content,
-                'media' => $post->image ? [$post->image] : [],
-                'author' => [
-                    'id' => $post->user->id,
-                    'name' => $post->user->first_name . ' ' . $post->user->last_name,
-                    'username' => strtolower($post->user->first_name . $post->user->last_name),
-                    'avatar' => $post->user->profile_image
-                ],
-                'tags' => [],
-                'likes' => rand(50, 500),
-                'comments' => rand(10, 100),
-                'shares' => rand(5, 50),
-                'isLiked' => false,
-                'createdAt' => $post->created_at->toISOString()
-            ];
-        });
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'posts' => $formattedPosts,
-                'trending' => true
-            ]
-        ]);
-    }
 
     // ====================
     // SOCIAL / USER RELATIONS
@@ -823,87 +804,58 @@ class PersonnaliseController extends Controller
 
 public function getSavedPosts(Request $request)
 {
-    $user = $request->user();
-
-    $posts = $user->savedPosts()
-        ->with(['media', 'user'])
-        ->get()
-        ->map(function ($post) {
-            return [
-                'id' => $post->id,
-                'content' => $post->body ?? $post->title ?? '',
-                'media' => $post->media->pluck('file_path')->toArray(),
-                'author' => [
-                    'id' => $post->user->id,
-                    'name' => $post->user->first_name . ' ' . $post->user->last_name,
-                    'username' => $post->user->email, // Utiliser email comme username temporairement
-                    'avatar' => $post->user->profile_image ?? 'https://ui-avatars.com/api/?name=' . urlencode($post->user->first_name . '+' . $post->user->last_name),
-                ],
-                'likes' => $post->likes_count ?? 0,
-                'comments' => $post->comments_count ?? 0,
-                'shares' => $post->shares_count ?? 0,
-                'savedAt' => optional($post->pivot)->created_at ? $post->pivot->created_at->toIso8601String() : now()->toIso8601String(),
-            ];
-        });
-
-    return response()->json([
-        'success' => true,
-        'data' => [
-            'posts' => $posts
-        ]
-    ]);
+  //not impl
 }
 
-    public function updateAvatar(Request $request) {
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'avatarUrl' => 'https://example.com/new_avatar.jpg',
-                'message' => 'Profile picture updated successfully'
-            ]
-        ]);
-    }
-    public function updateCoverPhoto(Request $request) {
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'coverPhotoUrl' => 'https://example.com/new_cover.jpg',
-                'message' => 'Cover photo updated successfully'
-            ]
-        ]);
-    }
 
     // ====================
     // POSTS
     // ====================
     public function addCommentToPost($postId, Request $request) {
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'comment' => [
-                    'id' => 1,
-                    'content' => $request->content ?? '',
-                    'author' => [
-                        'id' => 1,
-                        'name' => 'John Doe',
-                        'username' => 'johndoe',
-                        'avatar' => 'https://example.com/avatar.jpg'
-                    ],
-                    'createdAt' => now()->toISOString(),
-                    'likes' => 0
-                ],
-                'totalComments' => 1
-            ]
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 401);
+        }
+
+        $request->validate([
+            'content' => 'required|string|max:2000',
         ]);
+
+        $post = Post::find($postId);
+        if (!$post) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Post not found'
+            ], 404);
+        }
+
+        $post->comments()->create([
+            'user_id' => $user->id,
+            'post_id' => $post->id,
+            'content' => $request->content,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Commentaire ajouté avec succès.',
+        ], 201);
     }
+
     public function sharePost($postId, Request $request) {
+       //notimpemented
+    }
+
+
+    public function getCategories()
+    {
+        $categories = Category::all();
         return response()->json([
             'success' => true,
             'data' => [
-                'shared' => true,
-                'sharesCount' => 1,
-                'shareId' => 1,
-                'message' => 'Post shared successfully'
+                'categories' => $categories
             ]
         ]);
     }
