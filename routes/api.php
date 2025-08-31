@@ -116,6 +116,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('Y/posts/{postId}/delete', [PersonnaliseController::class, 'deletePost']);
 
     Route::post('Y/users/{userId}/follow', [PersonnaliseController::class, 'followUser']);
+    Route::delete('Y/users/{userId}/unfollow', [PersonnaliseController::class, 'unfollowUser']);
 
     Route::post('Y/posts/{postId}/favorite', [PersonnaliseController::class, 'addfavoritePost']);
 
@@ -123,8 +124,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('Y/fandoms/{fandom_id}', [PersonnaliseController::class, 'getfandombyId']);
 
-    // Allow authenticated user to join a fandom (by id or handle/name)
-    Route::post('Y/fandoms/{idOrHandle}/join', [PersonnaliseController::class, 'joinFandom']);
+    // Allow authenticated user to join a fandom by id
+    Route::post('Y/fandoms/{fandom_id}/join', [PersonnaliseController::class, 'joinFandom']);
+
+    Route::post('Y/fandoms', [PersonnaliseController::class, 'createFandom']);
+    // Update an existing fandom by id
+    Route::post('Y/fandoms/{fandom_id}', [PersonnaliseController::class, 'updateFandom']);
 
 });
 

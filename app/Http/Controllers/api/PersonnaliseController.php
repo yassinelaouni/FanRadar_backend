@@ -112,6 +112,7 @@ class PersonnaliseController extends Controller
             'password' => 'required|string|min:6',
             'date_naissance' => 'nullable|date',
             'gender' => 'nullable|in:male,female,other',
+            'bio' => 'nullable|string|max:2000',
             'preferred_categories' => 'nullable|array',
             'preferred_categories.*' => 'integer|exists:categories,id',
         ]);
@@ -125,10 +126,12 @@ class PersonnaliseController extends Controller
             'last_name' => $request->last_name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'profile_image' => $profileImagePath ?? 'default.png',
-            'background_image' => 'default_background.png',
+            // store null when no image provided (do not use default.png)
+            'profile_image' => $profileImagePath ?? null,
+            'background_image' => null,
             'date_naissance' => $request->date_naissance,
             'gender' => $request->gender,
+            'bio' => $request->bio ?? null,
         ]);
 
         $user->assignRole('user');
@@ -235,6 +238,7 @@ class PersonnaliseController extends Controller
             'last_name' => 'sometimes|string|max:255',
             'date_naissance' => 'sometimes|date',
             'gender' => 'sometimes|in:male,female,other',
+            'bio' => 'sometimes|string|max:2000',
             'profile_image' => 'sometimes|file|image|mimes:jpeg,png,jpg,gif,webp|max:4096',
             'background_image' => 'sometimes|file|image|mimes:jpeg,png,jpg,gif,webp|max:4096',
             'preferred_categories' => 'sometimes|array',
@@ -256,7 +260,8 @@ class PersonnaliseController extends Controller
         if ($request->has('first_name')) $updateData['first_name'] = $request->first_name;
         if ($request->has('last_name')) $updateData['last_name'] = $request->last_name;
         if ($request->has('date_naissance')) $updateData['date_naissance'] = $request->date_naissance;
-        if ($request->has('gender')) $updateData['gender'] = $request->gender;
+    if ($request->has('gender')) $updateData['gender'] = $request->gender;
+    if ($request->has('bio')) $updateData['bio'] = $request->bio;
 
 
         // Gérer l'upload de la photo de profil
@@ -335,6 +340,7 @@ class PersonnaliseController extends Controller
 
         'schedule_at' => 'nullable|date',
         'description' => 'nullable|string',
+    'subcategory_id' => 'nullable|integer|exists:subcategories,id',
         'content_status' => 'required|in:draft,published,archived',
         'medias' => 'nullable|array',
         'medias.*' => 'file|mimes:jpg,jpeg,png,mp4,mov|max:20480',
@@ -399,6 +405,7 @@ class PersonnaliseController extends Controller
         'post' => [
             'id' => $post->id,
             'body' => $post->body,
+            'subcategory_id' => $post->subcategory_id ?? null,
             'media' => method_exists($post, 'medias') ? $post->medias->pluck('file_path')->toArray() : [],
             'tags' => method_exists($post, 'tags') ? $post->tags->pluck('tag_name')->toArray() : [],
             'content_status' => $post->content_status,
@@ -801,6 +808,35 @@ class PersonnaliseController extends Controller
         ], 201);
     }
 
+    public function unfollowUser($userId) {
+        $authUser = Auth::user();
+        if (!$authUser) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        $followerId = $authUser->id;
+
+        // Vérifier que l'utilisateur existe
+        $userToUnfollow = User::find($userId);
+        if (!$userToUnfollow) {
+            return response()->json(['success' => false, 'message' => 'User not found'], 404);
+        }
+
+        // Supprimer la relation si elle existe
+        $existingFollow = \App\Models\Follow::where([
+            'follower_id' => $followerId,
+            'following_id' => $userId,
+        ])->first();
+
+        if (!$existingFollow) {
+            return response()->json(['success' => false, 'message' => 'Not following this user'], 409);
+        }
+
+        $existingFollow->delete();
+
+        return response()->json(['success' => true, 'message' => 'User unfollowed successfully'], 200);
+    }
+
 
 public function getSavedPosts(Request $request)
 {
@@ -1018,25 +1054,17 @@ public function getSavedPosts(Request $request)
 
     /**
      * Permettre à un utilisateur authentifié de rejoindre un fandom
-     * Route: POST /api/Y/fandoms/{idOrHandle}/join
+     * Route: POST /api/Y/fandoms/{fandom_id}/join
      */
-    public function joinFandom($idOrHandle, Request $request)
+    public function joinFandom($fandom_id, Request $request)
     {
         $user = Auth::user();
         if (!$user) {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
         }
 
-        // Résoudre le fandom par id numérique ou par nom/handle
-        $fandom = null;
-        if (is_numeric($idOrHandle)) {
-            $fandom = \App\Models\Fandom::find((int) $idOrHandle);
-        }
-
-        if (!$fandom) {
-            // essayer par nom (case-insensitive)
-            $fandom = \App\Models\Fandom::where('name', $idOrHandle)->orWhere('name', 'like', $idOrHandle)->first();
-        }
+        // Résoudre le fandom par id
+        $fandom = \App\Models\Fandom::find((int) $fandom_id);
 
         if (!$fandom) {
             return response()->json(['success' => false, 'message' => 'Fandom not found'], 404);
@@ -1151,6 +1179,168 @@ public function getSavedPosts(Request $request)
                 ]
             ]
         ]);
+    }
+
+    /**
+     * Créer un nouveau fandom
+     * Route: POST /api/Y/fandoms
+     */
+    public function createFandom(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'subcategory_id' => 'required|integer|exists:subcategories,id',
+            // cover_image may be either an uploaded file or an external URL string
+            'cover_image' => ['nullable', function ($attribute, $value, $fail) use ($request) {
+                // If a file was uploaded under this key, validate it here
+                if ($request->hasFile('cover_image')) {
+                    $file = $request->file('cover_image');
+                    if (!$file->isValid()) {
+                        return $fail('Le fichier '.$attribute.' est invalide.');
+                    }
+                    $ext = strtolower($file->getClientOriginalExtension());
+                    $allowed = ['jpg','jpeg','png','gif','webp'];
+                    if (!in_array($ext, $allowed)) {
+                        return $fail('Le fichier '.$attribute.' doit être une image (jpg,jpeg,png,gif,webp).');
+                    }
+                    // max size ~8MB
+                    if ($file->getSize() > 8192 * 1024) {
+                        return $fail('Le fichier '.$attribute.' est trop volumineux.');
+                    }
+                } else {
+                    // if not a file, allow null or a valid URL string
+                    if (!empty($value) && !filter_var($value, FILTER_VALIDATE_URL)) {
+                        return $fail('Le champ '.$attribute.' doit être une URL valide ou un fichier image.');
+                    }
+                }
+            }],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
+
+        // If a cover image file is uploaded, store it in fandom_cover_image and prefer it
+        if ($request->hasFile('cover_image') && $request->file('cover_image')->isValid()) {
+            $path = $request->file('cover_image')->store('fandom_cover_image', 'public');
+            // store a web-accessible path like 'storage/...'
+            $data['cover_image'] = 'storage/' . $path;
+        }
+
+        // If caller provided a URL string in cover_image (and no file), keep it as-is
+        if (empty($data['cover_image']) && $request->filled('cover_image')) {
+            $data['cover_image'] = $request->input('cover_image');
+        }
+
+        $fandom = \App\Models\Fandom::create([
+            'name' => $data['name'],
+            'description' => $data['description'] ?? null,
+            'subcategory_id' => $data['subcategory_id'] ?? null,
+            'cover_image' => $data['cover_image'] ?? null,
+        ]);
+
+        if (!$fandom) {
+            return response()->json(['success' => false, 'message' => 'Impossible de créer le fandom'], 500);
+        }
+
+        // Ajouter le créateur comme membre avec le rôle admin
+        try {
+            $existingMember = \App\Models\Member::where('user_id', $user->id)->where('fandom_id', $fandom->id)->first();
+            if (!$existingMember) {
+                \App\Models\Member::create([
+                    'user_id' => $user->id,
+                    'fandom_id' => $fandom->id,
+                    'role' => 'admin',
+                ]);
+            }
+        } catch (\Exception $e) {
+            // ne pas empêcher la création du fandom si l'ajout en membre échoue
+            // silent catch (no logging as requested)
+        }
+
+        return response()->json(['success' => true, 'message' => 'Fandom créé avec succès', 'data' => ['fandom' => $fandom]], 201);
+    }
+
+    /**
+     * Mettre à jour un fandom existant
+     * Route: POST /api/Y/fandoms/{idOrHandle}
+     */
+    public function updateFandom($fandom_id, Request $request)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        // Résoudre le fandom par id
+        $fandom = \App\Models\Fandom::find((int) $fandom_id);
+
+        if (!$fandom) {
+            return response()->json(['success' => false, 'message' => 'Fandom not found'], 404);
+        }
+
+        // Only allow admins of the fandom to update
+        $member = \App\Models\Member::where('user_id', $user->id)->where('fandom_id', $fandom->id)->first();
+        if (!$member || ($member->role ?? '') !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Permission denied'], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'name' => 'sometimes|string|max:255',
+            'description' => 'sometimes|nullable|string',
+            'subcategory_id' => 'sometimes|integer|exists:subcategories,id',
+            'cover_image' => ['nullable', function ($attribute, $value, $fail) use ($request) {
+                if ($request->hasFile('cover_image')) {
+                    $file = $request->file('cover_image');
+                    if (!$file->isValid()) return $fail('Invalid file.');
+                    $ext = strtolower($file->getClientOriginalExtension());
+                    $allowed = ['jpg','jpeg','png','gif','webp'];
+                    if (!in_array($ext, $allowed)) return $fail('Invalid image type.');
+                    if ($file->getSize() > 8192 * 1024) return $fail('File too large.');
+                } else {
+                    if (!empty($value) && !filter_var($value, FILTER_VALIDATE_URL)) {
+                        return $fail('The cover_image must be a valid URL or file.');
+                    }
+                }
+            }],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
+
+        // Handle uploaded cover image: store and delete old if present and was stored locally
+        if ($request->hasFile('cover_image') && $request->file('cover_image')->isValid()) {
+            $path = $request->file('cover_image')->store('fandom_cover_image', 'public');
+            $newUrl = 'storage/' . $path;
+            // if previous cover image was a storage path, delete the old file
+            if ($fandom->cover_image && str_starts_with($fandom->cover_image, 'storage/')) {
+                $oldPath = substr($fandom->cover_image, strlen('storage/'));
+                if (Storage::disk('public')->exists($oldPath)) {
+                    Storage::disk('public')->delete($oldPath);
+                }
+            }
+            $data['cover_image'] = $newUrl;
+        }
+
+        // If cover_image provided as URL string and not a file, use it
+        if (empty($data['cover_image']) && $request->filled('cover_image')) {
+            $data['cover_image'] = $request->input('cover_image');
+        }
+
+        $fandom->update($data);
+
+        return response()->json(['success' => true, 'message' => 'Fandom mis à jour avec succès', 'data' => ['fandom' => $fandom]], 200);
     }
 
     // ====================

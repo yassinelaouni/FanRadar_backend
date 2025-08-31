@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('fandoms', function (Blueprint $table) {
-            $table->string('cover_image_url')->nullable()->after('description');
+            $table->string('cover_image')->nullable()->after('description');
         });
     }
 
@@ -22,8 +22,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('fandoms', function (Blueprint $table) {
-            if (Schema::hasColumn('fandoms', 'cover_image_url')) {
-                $table->dropColumn('cover_image_url');
+            if (Schema::hasColumn('fandoms', 'cover_image')) {
+                $table->dropColumn('cover_image');
             }
         });
     }
