@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Post extends Model
 {
+    use HasFactory;
     protected $fillable = [
-
         'content',
         'user_id',
         'feedback',
@@ -23,7 +24,7 @@ class Post extends Model
         'media' => 'array',
     ];
 
-     public function user()
+    public function user()
     {
         return $this->belongsTo(User::class);
     }
@@ -52,7 +53,7 @@ class Post extends Model
     {
         return $this->morphMany(Favorite::class, 'favoriteable');
     }
-     public function comments()
+    public function comments()
     {
         return $this->hasMany(\App\Models\Comment::class);
     }
@@ -90,6 +91,14 @@ class Post extends Model
     public function medias()
     {
         return $this->morphMany(Media::class, 'mediable');
+    }
+
+    /**
+     * Relation vers le fandom (optionnelle)
+     */
+    public function fandom()
+    {
+        return $this->belongsTo(Fandom::class, 'fandom_id');
     }
 }
 

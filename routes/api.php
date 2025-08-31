@@ -121,6 +121,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('Y/posts/{postId}/comments', [PersonnaliseController::class, 'addCommentToPost']);
 
+    Route::get('Y/fandoms/{fandom_id}', [PersonnaliseController::class, 'getfandombyId']);
+
+    // Allow authenticated user to join a fandom (by id or handle/name)
+    Route::post('Y/fandoms/{idOrHandle}/join', [PersonnaliseController::class, 'joinFandom']);
+
 });
 
 Route::get('Y/users/{userId}/followers', [PersonnaliseController::class, 'getUserFollowers']);
@@ -130,8 +135,17 @@ Route::get('Y/feed/home', [PersonnaliseController::class, 'getHomeFeed']);
 Route::get('Y/feed/explore', [PersonnaliseController::class, 'getExploreFeed']);
 
 Route::get('Y/categories/list', [PersonnaliseController::class, 'getCategories']);
-Route::get('/categories/{category}/content', [PersonnaliseController::class, 'getCategoryContent']);
+//Route::get('/categories/{category}/content', [PersonnaliseController::class, 'getCategoryContent']);
 
+//Route::get('/store/products', [PersonnaliseController::class, 'getStoreProducts']);
+Route::get('Y/fandoms', [PersonnaliseController::class, 'getFandoms']);
+Route::get('Y/fandoms/trending', [PersonnaliseController::class, 'getTrendingFandoms']);
+// Search fandoms by query: /api/fandoms/search?q=QUERY
+Route::get('Y/fandoms/search', [PersonnaliseController::class, 'searchFandoms']);
+// Get posts for a fandom
+Route::get('Y/fandoms/{fandom_id}/posts', [PersonnaliseController::class, 'getFandomPosts']);
+// Get members (users) for a fandom
+Route::get('Y/fandoms/{fandom_id}/members', [PersonnaliseController::class, 'getFandomMembers']);
 
 
 
@@ -185,7 +199,6 @@ Route::get('/store/orders', [PersonnaliseController::class, 'getOrders']);
 Route::put('/store/orders/{orderId}/cancel', [PersonnaliseController::class, 'cancelOrder']);
 Route::get('/store/orders/{orderId}', [PersonnaliseController::class, 'getOrderDetails']);
 Route::post('/store/orders/{orderId}/review', [PersonnaliseController::class, 'reviewOrder']);
-Route::get('/store/products', [PersonnaliseController::class, 'getStoreProducts']);
 
 // ====================
 // UPLOAD IMAGE

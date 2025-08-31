@@ -859,6 +859,299 @@ public function getSavedPosts(Request $request)
             ]
         ]);
     }
+     /**
+     * Récupérer tous les fandoms
+     * Route: GET /api/fandoms
+     */
+    public function getFandoms()
+    {
+    // Charger la relation subcategory et le nombre de posts/members pour éviter les N+1
+    $fandoms = \App\Models\Fandom::with('subcategory')->withCount(['posts', 'members'])->get();
+
+        // Retourner tous les champs du modèle Fandom (sans les lister manuellement)
+        // on convertit chaque modèle en tableau puis on ajoute les compteurs et une sous-catégorie minimale
+        $formatted = $fandoms->map(function ($f) {
+            $attrs = $f->toArray();
+            // s'assurer que les compteurs sont présents
+            $attrs['posts_count'] = $f->posts_count ?? 0;
+            $attrs['members_count'] = $f->members_count ?? 0;
+
+            // réduire la sous-catégorie à id/name pour éviter de renvoyer trop de données
+            if (isset($attrs['subcategory']) && is_array($attrs['subcategory'])) {
+                $attrs['subcategory'] = [
+                    'id' => $attrs['subcategory']['id'] ?? null,
+                    'name' => $attrs['subcategory']['name'] ?? null,
+                ];
+            }
+
+            return $attrs;
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'fandoms' => $formatted
+            ]
+        ]);
+    }
+
+    public function getTrendingFandoms()
+    {
+    // Charger la relation subcategory et le nombre de posts/members pour éviter les N+1
+    $fandoms = \App\Models\Fandom::with('subcategory')->withCount(['posts', 'members'])->get();
+
+        // Retourner tous les champs du modèle Fandom (sans les lister manuellement)
+        // on convertit chaque modèle en tableau puis on ajoute les compteurs et une sous-catégorie minimale
+        $formatted = $fandoms->map(function ($f) {
+            $attrs = $f->toArray();
+            // s'assurer que les compteurs sont présents
+            $attrs['posts_count'] = $f->posts_count ?? 0;
+            $attrs['members_count'] = $f->members_count ?? 0;
+
+            // réduire la sous-catégorie à id/name pour éviter de renvoyer trop de données
+            if (isset($attrs['subcategory']) && is_array($attrs['subcategory'])) {
+                $attrs['subcategory'] = [
+                    'id' => $attrs['subcategory']['id'] ?? null,
+                    'name' => $attrs['subcategory']['name'] ?? null,
+                ];
+            }
+
+            return $attrs;
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'fandoms' => $formatted
+            ]
+        ]);
+    }
+
+    /**
+     * Rechercher des fandoms par q
+     * Route: GET /api/fandoms/search?q=QUERY
+     */
+    public function searchFandoms(Request $request)
+    {
+        $q = $request->get('q', '');
+
+        // base query: eager load subcategory and include counts
+        $query = \App\Models\Fandom::with('subcategory')->withCount(['posts', 'members']);
+
+        if (!empty($q)) {
+            // recherche sur le nom et la description
+            $query->where(function ($builder) use ($q) {
+                $builder->where('name', 'like', "%{$q}%")
+                        ->orWhere('description', 'like', "%{$q}%");
+            });
+        }
+
+        $fandoms = $query->get();
+
+        $formatted = $fandoms->map(function ($f) {
+            $attrs = $f->toArray();
+            $attrs['posts_count'] = $f->posts_count ?? 0;
+            $attrs['members_count'] = $f->members_count ?? 0;
+            if (isset($attrs['subcategory']) && is_array($attrs['subcategory'])) {
+                $attrs['subcategory'] = [
+                    'id' => $attrs['subcategory']['id'] ?? null,
+                    'name' => $attrs['subcategory']['name'] ?? null,
+                ];
+            }
+            return $attrs;
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'fandoms' => $formatted,
+                'query' => $q
+            ]
+        ]);
+    }
+
+
+        /**
+     * Récupérer les fandoms d'une sous-catégorie
+     * Route: GET /api/subcategories/{subcategoryId}/fandoms
+     */
+
+
+    /**
+     * Récupérer un fandom par id et inclure le statut du member de l'utilisateur authentifié
+     * Route: GET /api/fandoms/{fandom_id} (route already registered)
+     */
+    public function getfandombyId($fandomId, Request $request)
+    {
+        $user = Auth::user();
+
+        $fandom = \App\Models\Fandom::with('subcategory')->withCount(['posts', 'members'])->find($fandomId);
+        if (!$fandom) {
+            return response()->json(['success' => false, 'message' => 'Fandom not found'], 404);
+        }
+
+        $attrs = $fandom->toArray();
+        $attrs['posts_count'] = $fandom->posts_count ?? 0;
+        $attrs['members_count'] = $fandom->members_count ?? 0;
+
+        if (isset($attrs['subcategory']) && is_array($attrs['subcategory'])) {
+            $attrs['subcategory'] = [
+                'id' => $attrs['subcategory']['id'] ?? null,
+                'name' => $attrs['subcategory']['name'] ?? null,
+            ];
+        }
+
+        // Default membership info
+        $attrs['is_member'] = false;
+        $attrs['member_role'] = null;
+
+        if ($user) {
+            $member = \App\Models\Member::where('user_id', $user->id)->where('fandom_id', $fandom->id)->first();
+            if ($member) {
+                $attrs['is_member'] = true;
+                $attrs['member_role'] = $member->role;
+            }
+        }
+
+        return response()->json(['success' => true, 'data' => ['fandom' => $attrs]]);
+    }
+
+    /**
+     * Permettre à un utilisateur authentifié de rejoindre un fandom
+     * Route: POST /api/Y/fandoms/{idOrHandle}/join
+     */
+    public function joinFandom($idOrHandle, Request $request)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        // Résoudre le fandom par id numérique ou par nom/handle
+        $fandom = null;
+        if (is_numeric($idOrHandle)) {
+            $fandom = \App\Models\Fandom::find((int) $idOrHandle);
+        }
+
+        if (!$fandom) {
+            // essayer par nom (case-insensitive)
+            $fandom = \App\Models\Fandom::where('name', $idOrHandle)->orWhere('name', 'like', $idOrHandle)->first();
+        }
+
+        if (!$fandom) {
+            return response()->json(['success' => false, 'message' => 'Fandom not found'], 404);
+        }
+
+        // Vérifier si l'utilisateur est déjà membre
+        $existing = \App\Models\Member::where('user_id', $user->id)->where('fandom_id', $fandom->id)->first();
+        if ($existing) {
+            return response()->json(['success' => false, 'message' => 'Vous êtes déjà membre de ce fandom'], 409);
+        }
+
+        // Créer l'enregistrement de member (role par défaut: member)
+        $member = \App\Models\Member::create([
+            'user_id' => $user->id,
+            'fandom_id' => $fandom->id,
+            'role' => 'member',
+        ]);
+
+        if (!$member) {
+            return response()->json(['success' => false, 'message' => 'Impossible de rejoindre le fandom'], 500);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Vous avez rejoint le fandom avec succès.'], 201);
+    }
+
+    /**
+     * Obtenir les posts d'un fandom
+     * Route: GET /api/fandoms/{fandom_id}/posts
+     */
+    public function getFandomPosts($fandomId, Request $request)
+    {
+        $page = max(1, (int) $request->get('page', 1));
+        $limit = min(100, max(1, (int) $request->get('limit', 10)));
+
+        $fandom = \App\Models\Fandom::find($fandomId);
+        if (!$fandom) {
+            return response()->json(['success' => false, 'message' => 'Fandom not found'], 404);
+        }
+
+        $posts = \App\Models\Post::where('fandom_id', $fandomId)
+            ->with(['medias', 'tags', 'user'])
+            ->orderBy('created_at', 'desc')
+            ->paginate($limit, ['*'], 'page', $page);
+
+        $formatted = collect($posts->items())->map(function ($post) {
+            return [
+                'id' => $post->id,
+                'description' => $post->description,
+                'media' => method_exists($post, 'medias') ? $post->medias->pluck('file_path')->toArray() : [],
+                'tags' => method_exists($post, 'tags') ? $post->tags->pluck('tag_name')->toArray() : [],
+                'user' => $post->user ? $post->user->toArray() : null,
+                'likes_count' => method_exists($post, 'favorites') ? $post->favorites()->count() : 0,
+                'comments_count' => method_exists($post, 'comments') ? $post->comments()->count() : 0,
+                'created_at' => $post->created_at ? $post->created_at->toISOString() : null,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'posts' => $formatted,
+                'pagination' => [
+                    'page' => $posts->currentPage(),
+                    'per_page' => $posts->perPage(),
+                    'total' => $posts->total(),
+                    'last_page' => $posts->lastPage(),
+                    'has_more' => $posts->hasMorePages(),
+                ]
+            ]
+        ]);
+    }
+
+    /**
+     * Obtenir les membres d'un fandom
+     * Route: GET /api/fandoms/{fandom_id}/members
+     */
+    public function getFandomMembers($fandomId, Request $request)
+    {
+        $page = max(1, (int) $request->get('page', 1));
+        $limit = min(100, max(1, (int) $request->get('limit', 20)));
+
+        $fandom = \App\Models\Fandom::find($fandomId);
+        if (!$fandom) {
+            return response()->json(['success' => false, 'message' => 'Fandom not found'], 404);
+        }
+
+        // join members with users to get user info and role
+        $membersQuery = \App\Models\Member::where('fandom_id', $fandomId)->with('user');
+
+        $paginator = $membersQuery->paginate($limit, ['*'], 'page', $page);
+
+        $members = collect($paginator->items())->map(function ($m) {
+            $userArr = $m->user ? $m->user->toArray() : null;
+            return [
+                'member_id' => $m->id,
+                'user' => $userArr,
+                'member_role' => $m->role,
+                'joined_at' => $m->created_at ? $m->created_at->toISOString() : null,
+            ];
+        })->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'members' => $members,
+                'pagination' => [
+                    'page' => $paginator->currentPage(),
+                    'per_page' => $paginator->perPage(),
+                    'total' => $paginator->total(),
+                    'last_page' => $paginator->lastPage(),
+                    'has_more' => $paginator->hasMorePages(),
+                ]
+            ]
+        ]);
+    }
 
     // ====================
     // HASHTAGS

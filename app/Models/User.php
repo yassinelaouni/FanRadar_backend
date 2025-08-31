@@ -168,4 +168,8 @@ class User extends Authenticatable
     {
         return $this->hasMany(UserPreferredCategory::class);
     }
+        public function members()
+    {
+        return $this->hasMany(\App\Models\Member::class);
+    }
 }
