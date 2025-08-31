@@ -13,7 +13,7 @@ class Fandom extends Model
         'name',
         'description',
     'subcategory_id',
-    'cover_image_url',
+    'cover_image',
     ];
 
     public function subcategory()
